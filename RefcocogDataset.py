@@ -9,11 +9,12 @@ from torch.utils.data import Dataset, DataLoader
 
 
 class RefcocogDataset(Dataset):
-    def __init__(self, base_path, split=None, transform=None):
+    def __init__(self, base_path, split=None, transform=None, tokenization=None):
         annotation_path = base_path + "/annotations/"
 
         self.IMAGES_PATH = base_path + "/images/"
         self.transform = transform
+        self.tokenization = tokenization
 
         tmp_annotations = pandas.read_pickle(annotation_path + "refs(umd).p")
         tmp_instances = json.load(open(annotation_path + "instances.json", "r"))
@@ -37,12 +38,18 @@ class RefcocogDataset(Dataset):
     def splitTrainVal(self, lengths: Sequence[Union[int, float]]):
         return random_split(self, lengths)
 
-    def getImage(self, idx):
-        id = idx[0].item()
+    def getImage(self, sample):
+        id = sample['idx'][0].item()
         item = self.annotations.iloc[id]
         image = self.__getimage(item.image_id)
 
         return image
+
+    def getSentences(self, sample):
+        id = sample['idx'][0].item()
+        item = self.annotations.iloc[id]
+
+        return self.__extract_sentences(item.sentences)
 
     def __get_train_annotations(self):
         return self.annotations[self.annotations.split == "train"].reset_index()
@@ -56,6 +63,9 @@ class RefcocogDataset(Dataset):
     def __extract_sentences(self, sentences):
         return [f"a photo of a {s['sent']}" for s in sentences]
 
+    def __tokenize_sents(self, sentences):
+        return [self.tokenization(s) for s in sentences]
+
     def __len__(self):
         return self.annotations.shape[0]
 
@@ -67,6 +77,9 @@ class RefcocogDataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
+        if self.tokenization:
+            sentences = self.__tokenize_sents(sentences)
+
         sample = {'idx': idx, 'image': image, 'sentences': sentences}
 
         return sample, item.bbox
@@ -75,11 +88,12 @@ class RefcocogDataset(Dataset):
 if __name__ == "__main__":
     _, preprocess = clip.load("ViT-B/32")
 
-    dataset = RefcocogDataset("../refcocog", split="train", transform=preprocess)
+    dataset = RefcocogDataset("../refcocog", split="train", transform=preprocess, tokenization=clip.tokenize)
     train, val = random_split(dataset, [0.8, 0.2])
     train_dataloader = DataLoader(train)
 
     train_features, train_bbox = next(iter(train_dataloader))
-    dataset.getImage(train_features['idx']).show()
+    dataset.getImage(train_features).show()
+    print(dataset.getSentences(train_features))
     print(len(train))
     print(len(val))
