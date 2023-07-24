@@ -1,6 +1,7 @@
 import json
 import clip
 import pandas
+import torch
 from skimage import io
 from torch.utils.data import random_split
 from typing import Sequence, Union
@@ -85,21 +86,23 @@ class RefcocogDataset(Dataset):
         padding = MAX_NUM - len(sentences)
         print(padding)
 
-        # Add padding to array of sentences
-        for i in range(padding):
-            sentences.append("")
-
         if self.transform:
             image = self.transform(image)
 
         if self.tokenization:
             sentences = self.__tokenize_sents(sentences)
-        
-        print(sentences.size())
-        
+
+        # Add padding to array of sentences
+        for i in range(padding):
+            sentences.append(0)
+            # sentences.append(torch.zeros(sentences[0].size()))
+
         sample = {'idx': idx, 'image': image, 'sentences': sentences}
 
         return sample, item.bbox
+
+def remove_padding(sentences):
+    return [s for s in sentences if torch.mean(s, dtype=float) != 0]
 
 
 if __name__ == "__main__":
@@ -111,6 +114,8 @@ if __name__ == "__main__":
 
     train_features, train_bbox = next(iter(train_dataloader))
     dataset.getImage(train_features).show()
+    print(train_features['sentences'])
+    print(remove_padding(train_features['sentences']))
     print(dataset.getSentences(train_features))
     print(len(train))
     print(len(val))

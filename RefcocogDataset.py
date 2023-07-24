@@ -1,6 +1,7 @@
 import json
 import clip
 import pandas
+from skimage import io
 from torch.utils.data import random_split
 from typing import Sequence, Union
 
@@ -24,9 +25,12 @@ class RefcocogDataset(Dataset):
 
         instances_dt = pandas.DataFrame.from_records(tmp_instances['annotations'])
 
+        # Add Explode to separate list-like sentences column and use them as separate samples
         self.annotations = annotations_dt \
             .merge(instances_dt[["id", "bbox", "area"]], left_on="ann_id", right_on="id") \
+            .explode('sentences', ignore_index=True) \
             .drop(columns="id")
+
 
         if split is not None:
             if split.lower() == 'train':
@@ -58,7 +62,7 @@ class RefcocogDataset(Dataset):
         return self.annotations[self.annotations.split == "test"].reset_index()
 
     def __getimage(self, id):
-        return Image.open(self.IMAGES_PATH + "COCO_train2014_" + str(id).zfill(12) + ".jpg")
+        return io.imread(self.IMAGES_PATH + "COCO_train2014_" + str(id).zfill(12) + ".jpg")
 
     def __extract_sentences(self, sentences):
         return [f"a photo of a {s['sent']}" for s in sentences]
@@ -70,6 +74,9 @@ class RefcocogDataset(Dataset):
         return self.annotations.shape[0]
 
     def __getitem__(self, idx):
+        # Return {sample, sentence, id}, bbox
+        # Return single sentence, probably preprocess needed so we do not waste data
+        
         item = self.annotations.iloc[idx]
         image = self.__getimage(item.image_id)
         sentences = self.__extract_sentences(item.sentences)
@@ -88,7 +95,7 @@ class RefcocogDataset(Dataset):
 if __name__ == "__main__":
     _, preprocess = clip.load("ViT-B/32")
 
-    dataset = RefcocogDataset("../refcocog", split="train", transform=preprocess, tokenization=clip.tokenize)
+    dataset = RefcocogDataset("../Dataset/refcocog", split="train", tokenization=clip.tokenize)
     train, val = random_split(dataset, [0.8, 0.2])
     train_dataloader = DataLoader(train)
 
