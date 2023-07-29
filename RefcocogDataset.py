@@ -62,10 +62,10 @@ class RefcocogDataset(Dataset):
         return self.annotations[self.annotations.split == "test"].reset_index()
 
     def __getimage(self, id):
-        return io.imread(self.IMAGES_PATH + "COCO_train2014_" + str(id).zfill(12) + ".jpg")
+        return Image.open(self.IMAGES_PATH + "COCO_train2014_" + str(id).zfill(12) + ".jpg")
 
-    def __extract_sentences(self, sentences):
-        return [f"a photo of a {s['sent']}" for s in sentences]
+    def __extract_sentences(self, sentence):
+        return f"a photo of a {sentence['sent']}"
 
     def __tokenize_sents(self, sentences):
         return [self.tokenization(s) for s in sentences]
@@ -95,7 +95,7 @@ class RefcocogDataset(Dataset):
 if __name__ == "__main__":
     _, preprocess = clip.load("ViT-B/32")
 
-    dataset = RefcocogDataset("../Dataset/refcocog", split="train", tokenization=clip.tokenize)
+    dataset = RefcocogDataset("../Dataset/refcocog", split="train", tokenization=clip.tokenize, transform=preprocess)
     train, val = random_split(dataset, [0.8, 0.2])
     train_dataloader = DataLoader(train)
 
