@@ -9,7 +9,7 @@ from typing import Sequence, Union
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 
-MAX_NUM = 5
+MAX_NUM = 3
 
 
 class RefcocogDataset(Dataset):
