@@ -353,8 +353,9 @@ class CLIP(nn.Module):
     def dtype(self):
         return self.visual.conv1.weight.dtype
 
-    def encode_image_and_text(self, image, text):
+    def encode(self, image, text):
         assert(isinstance(self.visual, VisionTransformer))
+        assert(self.vision_layers == self.transformer.layers)
 
         x_image = image.type(self.dtype)
         x_image = self.visual.conv1(x_image)
@@ -365,32 +366,37 @@ class CLIP(nn.Module):
         x_image = self.visual.ln_pre(x_image)
         x_image = x_image.permute(1, 0, 2)
 
-
         x_text = self.token_embedding(text).type(self.dtype)  # [batch_size, n_ctx, d_model]
         x_text = x_text + self.positional_embedding.type(self.dtype)
         x_text = x_text.permute(1, 0, 2)
 
-
-        assert(self.vision_layers == self.transformer.layers)
-
         for i in range(self.vision_layers):
             x_image = self.visual.transformer.resblocks[i](x_image)
-            x_text = self.transformer.resblocks[i](x_text)
-        
-
+            x_text = self.transformer.resblocks[i](x_text)        
 
         x_image = x_image.permute(1, 0, 2)
+        # print(x_image.shape)
+        patch_tokens = x_image
         x_image = self.visual.ln_post(x_image[:, 0, :])
+        # print(x_image.shape)
         if self.visual.proj is not None:
             x_image = x_image @ self.visual.proj
-
+        # print(x_image.shape)
 
         x_text = x_text.permute(1, 0, 2)
         x_text = self.ln_final(x_text).type(self.dtype)
         x_text = x_text[torch.arange(x_text.shape[0]), text.argmax(dim=-1)] @ self.text_projection
 
+        # print(patch_tokens.shape)
+        for b in range(patch_tokens.shape[0]):
+            for t in range(patch_tokens.shape[1]):
+                patch_tokens[b, t] = self.visual.ln_post(patch_tokens[b, t])
+        # print(patch_tokens.shape)
+        if self.visual.proj is not None:
+            patch_tokens = patch_tokens @ self.visual.proj
+        # print(patch_tokens.shape)
 
-        return x_image, x_text
+        return x_image, x_text, patch_tokens
     
     def encode_image(self, image):
         return self.visual(image.type(self.dtype))
