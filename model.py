@@ -174,6 +174,7 @@ class ResidualAttentionBlock(nn.Module):
         super().__init__()
 
         self.n_layer = n_layer
+        self.type_input = type_input
         hidden_dim = int(d_model / 2) # hidden dimension chosen as half of input embedding
         self.backbone_adapters_MHSA = [BackboneAdapter(d_model, hidden_dim) for _ in range(layers)]
         self.backbone_adapters_MLP = [BackboneAdapter(d_model, hidden_dim) for _ in range(layers)]
@@ -193,6 +194,7 @@ class ResidualAttentionBlock(nn.Module):
         return self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask)[0]
 
     def forward(self, x: torch.Tensor):
+        # print(f'layer: {self.n_layer} type input: {self.type_input} input shape: {x.shape}')
         x = x + self.attention(self.ln_1(x))
         x = x + self.backbone_adapters_MHSA[self.n_layer](x)
         x = x + self.mlp(self.ln_2(x))
@@ -210,9 +212,7 @@ class Transformer(nn.Module):
 
     def forward(self, x: torch.Tensor):
         # print(f'type input: {self.type_input}\tinput shape: {x.shape}')
-        for resblock in self.resblocks:
-            x = resblock(x)
-        return x
+        return self.resblocks(x)
 
 
 class VisionTransformer(nn.Module):
@@ -271,6 +271,9 @@ class CLIP(nn.Module):
 
         self.vision_layers = vision_layers
         self.transformer_layers = transformer_layers
+        
+        self.vision_width = vision_width
+        self.transformer_width = transformer_width
 
         self.context_length = context_length
 
@@ -370,31 +373,30 @@ class CLIP(nn.Module):
         x_text = x_text + self.positional_embedding.type(self.dtype)
         x_text = x_text.permute(1, 0, 2)
 
+
+        self.prefusion_adapters = [PreFusionAdapter(self.vision_width, self.transformer_width, 512, 8) for _ in range(self.vision_layers)]
+
         for i in range(self.vision_layers):
             x_image = self.visual.transformer.resblocks[i](x_image)
-            x_text = self.transformer.resblocks[i](x_text)        
+            x_text = self.transformer.resblocks[i](x_text)
+            v, t = self.prefusion_adapters[i](x_image, x_text)
+            x_image = x_image + v
+            x_text = x_text + t
 
         x_image = x_image.permute(1, 0, 2)
-        # print(x_image.shape)
         patch_tokens = x_image
         x_image = self.visual.ln_post(x_image[:, 0, :])
-        # print(x_image.shape)
         if self.visual.proj is not None:
             x_image = x_image @ self.visual.proj
-        # print(x_image.shape)
 
         x_text = x_text.permute(1, 0, 2)
         x_text = self.ln_final(x_text).type(self.dtype)
         x_text = x_text[torch.arange(x_text.shape[0]), text.argmax(dim=-1)] @ self.text_projection
 
-        # print(patch_tokens.shape)
-        for b in range(patch_tokens.shape[0]):
-            for t in range(patch_tokens.shape[1]):
-                patch_tokens[b, t] = self.visual.ln_post(patch_tokens[b, t])
-        # print(patch_tokens.shape)
+        for token in range(patch_tokens.shape[1]):
+            patch_tokens[:, token] = self.visual.ln_post(patch_tokens[:, token, :])
         if self.visual.proj is not None:
             patch_tokens = patch_tokens @ self.visual.proj
-        # print(patch_tokens.shape)
 
         return x_image, x_text, patch_tokens
     
