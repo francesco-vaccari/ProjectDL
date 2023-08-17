@@ -33,7 +33,6 @@ class PreFusionAdapter(nn.Module):
         self.W_t2s = nn.Linear(text_input_dim, shared_dim)
         self.CA_image = nn.MultiheadAttention(embed_dim=shared_dim, num_heads=n_head)
         self.CA_text = nn.MultiheadAttention(embed_dim=shared_dim, num_heads=n_head)
-        # in CA_image the query is the image, the key and value are the text
         self.W_s2v = nn.Linear(shared_dim, image_input_dim)
         self.W_s2t = nn.Linear(shared_dim, text_input_dim)
 
@@ -52,9 +51,9 @@ class PreFusionAdapter(nn.Module):
         text = self.ln_text(text)
         image = self.W_v2s(image)
         text = self.W_t2s(text)
-        # maybe linear projections needed to create query, key, value for both. Maybe not
-        image, _ = self.CA_image(query=image, key=text, value=text)
-        text, _ = self.CA_text(query=text, key=image, value=image)
+        # in CA_image the query is the image, the key and value are the text
+        image, _ = self.CA_image(query=image, key=text, value=text, need_weights=False)
+        text, _ = self.CA_text(query=text, key=image, value=image, need_weights=False)
         image = self.W_s2v(image)
         text = self.W_s2t(text)
         return image, text
@@ -64,6 +63,8 @@ class PreFusionAdapter(nn.Module):
 class PostFusionAdapter(nn.Module):
     def __init__(self):
         super().__init__()
+        # cross attention without the projections at the start
+        # then MHSA and MLP for each modality
 
     def forward(self, x):
         return x
