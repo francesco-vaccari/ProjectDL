@@ -39,7 +39,8 @@ def build_probability_map(out_text, patch_tokens):
     sim = []
     for token in patch_tokens:
         sim.append(torch.cosine_similarity(token, out_text).item())
-    
+
+    sim = torch.sigmoid(torch.tensor(sim))
     sim = torch.tensor(sim).reshape(14, 14)
 
     fig, axs = plt.subplots(1, 2, figsize=(10, 5))
