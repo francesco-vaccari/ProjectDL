@@ -57,9 +57,7 @@ class RefcocogDataset(Dataset):
 
         return self.__extract_sentences(item.sentences)
 
-    def computeGroundTruth(self, sample):
-        id = sample['idx'][0].item()
-        item = self.annotations.iloc[id]
+    def __computeGroundTruth(self, item):
         image = self.__getimage(item.image_id)
         mask = Image.new("L", image.size)
         draw = ImageDraw.Draw(mask)
@@ -68,8 +66,6 @@ class RefcocogDataset(Dataset):
         return self.__img_preprocess(mask)
     
     def __img_preprocess(self, image: Image, n_px: int = 224, grid_px: int = 14):
-        print(n_px)
-        print(type(n_px))
         resized = T.Resize(n_px, interpolation=Image.BICUBIC)(image)
         crop = T.CenterCrop(n_px)(resized)
 
@@ -112,7 +108,7 @@ class RefcocogDataset(Dataset):
 
         sample = {'idx': idx, 'image': image, 'sentences': sentences}
 
-        return sample, item.bbox
+        return sample, {'bbox': item.bbox, 'gt': self.__computeGroundTruth(item)}
 
 
 if __name__ == "__main__":
