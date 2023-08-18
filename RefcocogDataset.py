@@ -5,8 +5,11 @@ from skimage import io
 from torch.utils.data import random_split
 from typing import Sequence, Union
 
-from PIL import Image
+from PIL import Image, ImageDraw
 from torch.utils.data import Dataset, DataLoader
+import torchvision.transforms as T
+import torch
+import numpy as np
 
 
 class RefcocogDataset(Dataset):
@@ -27,10 +30,9 @@ class RefcocogDataset(Dataset):
 
         # Add Explode to separate list-like sentences column and use them as separate samples
         self.annotations = annotations_dt \
-            .merge(instances_dt[["id", "bbox", "area"]], left_on="ann_id", right_on="id") \
+            .merge(instances_dt[["id", "bbox", "area", "segmentation"]], left_on="ann_id", right_on="id") \
             .explode('sentences', ignore_index=True) \
             .drop(columns="id")
-
 
         if split is not None:
             if split.lower() == 'train':
@@ -54,6 +56,27 @@ class RefcocogDataset(Dataset):
         item = self.annotations.iloc[id]
 
         return self.__extract_sentences(item.sentences)
+
+    def computeGroundTruth(self, sample):
+        id = sample['idx'][0].item()
+        item = self.annotations.iloc[id]
+        image = self.__getimage(item.image_id)
+        mask = Image.new("L", image.size)
+        draw = ImageDraw.Draw(mask)
+        draw.polygon(item.segmentation[0], fill="white", width=0)
+
+        return self.__img_preprocess(mask)
+    
+    def __img_preprocess(self, image: Image, n_px: int = 224, grid_px: int = 14):
+        print(n_px)
+        print(type(n_px))
+        resized = T.Resize(n_px, interpolation=Image.BICUBIC)(image)
+        crop = T.CenterCrop(n_px)(resized)
+
+        grid = T.Resize(grid_px, interpolation=Image.BICUBIC)(crop)
+
+        arr = torch.tensor(np.asarray(grid))
+        return arr
 
     def __get_train_annotations(self):
         return self.annotations[self.annotations.split == "train"].reset_index()
