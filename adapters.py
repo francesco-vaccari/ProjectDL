@@ -1,7 +1,5 @@
 import torch.nn as nn
 
-
-
 # 768 -> hidden per visual
 # 512 -> hidden per text
 class BackboneAdapter(nn.Module):
@@ -65,10 +63,62 @@ class PreFusionAdapter(nn.Module):
 
 
 class PostFusionAdapter(nn.Module):
-    def __init__(self):
+    def __init__(self, shared_dim, CA_n_head, MHSA_n_head, MLP_hidden_dim):
         super().__init__()
         # cross attention without the projections at the start
         # then MHSA and MLP for each modality
 
-    def forward(self, x):
-        return x
+        self.ln_image = nn.LayerNorm(shared_dim)
+        self.ln_text = nn.LayerNorm(shared_dim)
+        self.CA_image = nn.MultiheadAttention(embed_dim=shared_dim, num_heads=CA_n_head)
+        self.CA_text = nn.MultiheadAttention(embed_dim=shared_dim, num_heads=CA_n_head)
+        self.ln_image2 = nn.LayerNorm(shared_dim)
+        self.ln_text2 = nn.LayerNorm(shared_dim)
+        self.MHSA_image = nn.MultiheadAttention(embed_dim=shared_dim, num_heads=MHSA_n_head)
+        self.MHSA_text = nn.MultiheadAttention(embed_dim=shared_dim, num_heads=MHSA_n_head)
+        self.ln_image3 = nn.LayerNorm(shared_dim)
+        self.ln_text3 = nn.LayerNorm(shared_dim)
+        self.MLP_image = nn.Sequential(
+            nn.Linear(shared_dim, MLP_hidden_dim),
+            nn.ReLU(),
+            nn.Linear(MLP_hidden_dim, shared_dim)
+        )
+        self.MLP_text = nn.Sequential(
+            nn.Linear(shared_dim, MLP_hidden_dim),
+            nn.ReLU(),
+            nn.Linear(MLP_hidden_dim, shared_dim)
+        )
+
+        # initialize MLPs with zeros, also value projections in CA and MHA with zeros
+        nn.init.zeros_(self.MLP_image[0].weight)
+        nn.init.zeros_(self.MLP_image[2].weight)
+        nn.init.zeros_(self.MLP_text[0].weight)
+        nn.init.zeros_(self.MLP_text[2].weight)
+        nn.init.zeros_(self.CA_image.in_proj_weight[-512:]) # last 512 in first dimension are weights for value projection
+        nn.init.zeros_(self.CA_text.in_proj_weight[-512:])
+        nn.init.zeros_(self.MHSA_image.in_proj_weight[-512:])
+        nn.init.zeros_(self.MHSA_text.in_proj_weight[-512:])
+
+        self.MLP_image[0].bias.data.fill_(0.0) # not specified in paper, maybe remove
+        self.MLP_image[2].bias.data.fill_(0.0) # not specified in paper, maybe remove
+        self.MLP_text[0].bias.data.fill_(0.0) # not specified in paper, maybe remove
+        self.MLP_text[2].bias.data.fill_(0.0) # not specified in paper, maybe remove
+        nn.init.zeros_(self.CA_image.in_proj_bias[-512:]) # last 512 are biases for value projection
+        nn.init.zeros_(self.CA_text.in_proj_bias[-512:])
+        nn.init.zeros_(self.MHSA_image.in_proj_bias[-512:])
+        nn.init.zeros_(self.MHSA_text.in_proj_bias[-512:])
+    
+    def forward(self, image, text):
+        image = self.ln_image(image)
+        text = self.ln_text(text)
+        image, _ = self.CA_image(query=image, key=text, value=text, need_weights=False)
+        text, _ = self.CA_text(query=text, key=image, value=image, need_weights=False)
+        image = self.ln_image2(image)
+        text = self.ln_text2(text)
+        image, _ = self.MHSA_image(query=image, key=image, value=image, need_weights=False)
+        text, _ = self.MHSA_text(query=text, key=text, value=text, need_weights=False)
+        image = self.ln_image3(image)
+        text = self.ln_text3(text)
+        image = self.MLP_image(image)
+        text = self.MLP_text(text)
+        return image, text

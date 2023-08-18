@@ -196,9 +196,9 @@ class ResidualAttentionBlock(nn.Module):
     def forward(self, x: torch.Tensor):
         # print(f'layer: {self.n_layer} type input: {self.type_input} input shape: {x.shape}')
         x = x + self.attention(self.ln_1(x))
-        x = x + self.backbone_adapters_MHSA[self.n_layer](x)
+        # x = x + self.backbone_adapters_MHSA[self.n_layer](x)
         x = x + self.mlp(self.ln_2(x))
-        x = x + self.backbone_adapters_MLP[self.n_layer](x)
+        # x = x + self.backbone_adapters_MLP[self.n_layer](x)
         return x
 
 
@@ -359,6 +359,7 @@ class CLIP(nn.Module):
     def encode(self, image, text):
         assert(isinstance(self.visual, VisionTransformer))
         assert(self.vision_layers == self.transformer.layers)
+        assert(self.visual.proj.shape[1] ==  self.text_projection.shape[1])
 
         x_image = image.type(self.dtype)
         x_image = self.visual.conv1(x_image)
@@ -373,32 +374,50 @@ class CLIP(nn.Module):
         x_text = x_text + self.positional_embedding.type(self.dtype)
         x_text = x_text.permute(1, 0, 2)
 
-
-        self.prefusion_adapters = [PreFusionAdapter(self.vision_width, self.transformer_width, 512, 8) for _ in range(self.vision_layers)]
+        # self.prefusion_adapters = [PreFusionAdapter(self.vision_width, self.transformer_width, 512, 8) for _ in range(self.vision_layers)]
 
         for i in range(self.vision_layers):
+            # v, t = self.prefusion_adapters[i](x_image, x_text)
+            # x_image = x_image + v
+            # x_text = x_text + t
             x_image = self.visual.transformer.resblocks[i](x_image)
             x_text = self.transformer.resblocks[i](x_text)
-            v, t = self.prefusion_adapters[i](x_image, x_text)
-            x_image = x_image + v
-            x_text = x_text + t
+        
 
-        x_image = x_image.permute(1, 0, 2)
+        x_image = x_image.permute(1, 0, 2) # batch, CLS+patches, features
+        x_text = x_text.permute(1, 0, 2) # batch, seq, features
+
         patch_tokens = x_image
-        x_image = self.visual.ln_post(x_image[:, 0, :])
-        if self.visual.proj is not None:
-            x_image = x_image @ self.visual.proj
+        
+        x_image = self.visual.ln_post(x_image[:, 0, :]) # take CLS token and layer norm
+        x_text = self.ln_final(x_text).type(self.dtype) # layer norm
 
-        x_text = x_text.permute(1, 0, 2)
-        x_text = self.ln_final(x_text).type(self.dtype)
+
+        if self.visual.proj is not None:
+            x_image = x_image @ self.visual.proj # final proj into shared space
+        
+        # text tokens projected in shared space
+        text_tokens = x_text[torch.arange(x_text.shape[0]), :text.argmax(dim=-1) + 1] @ self.text_projection
+        
+        # for each batch, take the last token (EOT) and project it into the shared space
         x_text = x_text[torch.arange(x_text.shape[0]), text.argmax(dim=-1)] @ self.text_projection
 
+
+        # layer norm and projection into shared space for patch tokens
         for token in range(patch_tokens.shape[1]):
             patch_tokens[:, token] = self.visual.ln_post(patch_tokens[:, token, :])
         if self.visual.proj is not None:
             patch_tokens = patch_tokens @ self.visual.proj
+        
 
-        return x_image, x_text, patch_tokens
+        patch_tokens = patch_tokens.permute(1, 0, 2)
+        text_tokens = text_tokens.permute(1, 0, 2)
+        # self.postfusion_apdapter = PostFusionAdapter(shared_dim=self.visual.proj.shape[1], CA_n_head=8, MHSA_n_head=8, MLP_hidden_dim=256)
+        # v, t = self.postfusion_apdapter(patch_tokens, text_tokens)
+        # patch_tokens = v + patch_tokens
+        # text_tokens = t + text_tokens
+
+        return x_image, x_text, patch_tokens.permute(1, 0, 2), text_tokens.permute(1, 0, 2)
     
     def encode_image(self, image):
         return self.visual(image.type(self.dtype))
