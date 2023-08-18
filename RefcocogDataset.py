@@ -1,5 +1,4 @@
 import json
-import clip
 import pandas
 from skimage import io
 from torch.utils.data import random_split
@@ -35,14 +34,7 @@ class RefcocogDataset(Dataset):
             .drop(columns="id")
 
         if split is not None:
-            if split.lower() == 'train':
-                self.annotations = self.__get_train_annotations()
-
-            if split.lower() == 'test':
-                self.annotations = self.__get_test_annotations()
-
-    def splitTrainVal(self, lengths: Sequence[Union[int, float]]):
-        return random_split(self, lengths)
+            self.annotations = self.__get_annotations_by_split(split.lower())
 
     def getImage(self, sample):
         id = sample['idx'][0].item()
@@ -77,8 +69,8 @@ class RefcocogDataset(Dataset):
     def __get_train_annotations(self):
         return self.annotations[self.annotations.split == "train"].reset_index()
 
-    def __get_test_annotations(self):
-        return self.annotations[self.annotations.split == "test"].reset_index()
+    def __get_annotations_by_split(self, split):
+        return self.annotations[self.annotations.split == split].reset_index()
 
     def __getimage(self, id):
         return Image.open(self.IMAGES_PATH + "COCO_train2014_" + str(id).zfill(12) + ".jpg")
