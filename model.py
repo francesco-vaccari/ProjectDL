@@ -175,9 +175,6 @@ class ResidualAttentionBlock(nn.Module):
 
         self.n_layer = n_layer
         self.type_input = type_input
-        hidden_dim = int(d_model / 2) # hidden dimension chosen as half of input embedding
-        self.backbone_adapters_MHSA = [BackboneAdapter(d_model, hidden_dim) for _ in range(layers)]
-        self.backbone_adapters_MLP = [BackboneAdapter(d_model, hidden_dim) for _ in range(layers)]
 
         self.attn = nn.MultiheadAttention(d_model, n_head)
         self.ln_1 = LayerNorm(d_model)
@@ -193,12 +190,12 @@ class ResidualAttentionBlock(nn.Module):
         self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device) if self.attn_mask is not None else None
         return self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask)[0]
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor, back_adap_MHSA, back_adap_MLP):
         # print(f'layer: {self.n_layer} type input: {self.type_input} input shape: {x.shape}')
         x = x + self.attention(self.ln_1(x))
-        # x = x + self.backbone_adapters_MHSA[self.n_layer](x)
+        x = x + back_adap_MHSA(x)
         x = x + self.mlp(self.ln_2(x))
-        # x = x + self.backbone_adapters_MLP[self.n_layer](x)
+        x = x + back_adap_MLP(x)
         return x
 
 
@@ -355,6 +352,17 @@ class CLIP(nn.Module):
     @property
     def dtype(self):
         return self.visual.conv1.weight.dtype
+    
+    def init_adapters(self):
+        vis_hidden_dim = int(self.vision_width / 2) # hidden dimension chosen as half of input embedding
+        txt_hidden_dim = int(self.transformer_width / 2) # hidden dimension chosen as half of input embedding
+        self.backbone_adapters_MHSA_vis = nn.Sequential(*[BackboneAdapter(self.vision_width, vis_hidden_dim) for _ in range(self.vision_layers)])
+        self.backbone_adapters_MLP_vis = nn.Sequential(*[BackboneAdapter(self.vision_width, vis_hidden_dim) for _ in range(self.vision_layers)])
+        self.backbone_adapters_MHSA_txt = nn.Sequential(*[BackboneAdapter(self.transformer_width, txt_hidden_dim) for _ in range(self.transformer_layers)])
+        self.backbone_adapters_MLP_txt = nn.Sequential(*[BackboneAdapter(self.transformer_width, txt_hidden_dim) for _ in range(self.transformer_layers)])
+
+        self.prefusion_adapters = nn.Sequential(*[PreFusionAdapter(self.vision_width, self.transformer_width, 512, 8) for _ in range(self.vision_layers)])
+        self.postfusion_adapter = PostFusionAdapter(shared_dim=self.visual.proj.shape[1], CA_n_head=8, MHSA_n_head=8, MLP_hidden_dim=256)
 
     def encode(self, image, text):
         assert(isinstance(self.visual, VisionTransformer))
@@ -374,14 +382,13 @@ class CLIP(nn.Module):
         x_text = x_text + self.positional_embedding.type(self.dtype)
         x_text = x_text.permute(1, 0, 2)
 
-        # self.prefusion_adapters = [PreFusionAdapter(self.vision_width, self.transformer_width, 512, 8) for _ in range(self.vision_layers)]
 
         for i in range(self.vision_layers):
-            # v, t = self.prefusion_adapters[i](x_image, x_text)
-            # x_image = x_image + v
-            # x_text = x_text + t
-            x_image = self.visual.transformer.resblocks[i](x_image)
-            x_text = self.transformer.resblocks[i](x_text)
+            v, t = self.prefusion_adapters[i](x_image, x_text)
+            x_image = x_image + v
+            x_text = x_text + t
+            x_image = self.visual.transformer.resblocks[i](x_image, self.backbone_adapters_MHSA_vis[i], self.backbone_adapters_MLP_vis[i])
+            x_text = self.transformer.resblocks[i](x_text, self.backbone_adapters_MHSA_txt[i], self.backbone_adapters_MLP_txt[i])
         
 
         x_image = x_image.permute(1, 0, 2) # batch, CLS+patches, features
@@ -412,10 +419,9 @@ class CLIP(nn.Module):
 
         patch_tokens = patch_tokens.permute(1, 0, 2)
         text_tokens = text_tokens.permute(1, 0, 2)
-        # self.postfusion_apdapter = PostFusionAdapter(shared_dim=self.visual.proj.shape[1], CA_n_head=8, MHSA_n_head=8, MLP_hidden_dim=256)
-        # v, t = self.postfusion_apdapter(patch_tokens, text_tokens)
-        # patch_tokens = v + patch_tokens
-        # text_tokens = t + text_tokens
+        v, t = self.postfusion_adapter(patch_tokens, text_tokens)
+        patch_tokens = v + patch_tokens
+        text_tokens = t + text_tokens
 
         return x_image, x_text, patch_tokens.permute(1, 0, 2), text_tokens.permute(1, 0, 2)
     
