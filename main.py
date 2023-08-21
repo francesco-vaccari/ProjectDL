@@ -4,6 +4,7 @@ from PIL import Image
 from matplotlib import pyplot as plt
 
 model, preprocess = clip.load("ViT-B/16")
+model.init_adapters()
 
 img = original = Image.open("./refcocog/images/COCO_train2014_000000002842.jpg")
 # img.show()
