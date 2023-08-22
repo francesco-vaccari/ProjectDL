@@ -361,8 +361,8 @@ class CLIP(nn.Module):
         self.backbone_adapters_MHSA_txt = nn.Sequential(*[BackboneAdapter(self.transformer_width, txt_hidden_dim) for _ in range(self.transformer_layers)])
         self.backbone_adapters_MLP_txt = nn.Sequential(*[BackboneAdapter(self.transformer_width, txt_hidden_dim) for _ in range(self.transformer_layers)])
 
-        self.prefusion_adapters = nn.Sequential(*[PreFusionAdapter(self.vision_width, self.transformer_width, 512, 8) for _ in range(self.vision_layers)])
-        self.postfusion_adapter = PostFusionAdapter(shared_dim=self.visual.proj.shape[1], CA_n_head=8, MHSA_n_head=8, MLP_hidden_dim=256)
+        self.prefusion_adapters = nn.Sequential(*[PreFusionAdapter(self.vision_width, self.transformer_width, 512, 8) for _ in range(self.vision_layers-6)])
+        self.postfusion_adapter = nn.Sequential(*[PostFusionAdapter(shared_dim=self.visual.proj.shape[1], CA_n_head=8, MHSA_n_head=8, MLP_hidden_dim=256) for _ in range(6)])
     
     def freeze_for_training(self):
         for param in self.parameters():
@@ -410,11 +410,16 @@ class CLIP(nn.Module):
 
 
         for i in range(self.vision_layers):
-            v, t = self.prefusion_adapters[i](x_image, x_text)
-            x_image = x_image + v
-            x_text = x_text + t
-            x_image = self.visual.transformer.resblocks[i](x_image, self.backbone_adapters_MHSA_vis[i], self.backbone_adapters_MLP_vis[i])
-            x_text = self.transformer.resblocks[i](x_text, self.backbone_adapters_MHSA_txt[i], self.backbone_adapters_MLP_txt[i])
+            if i > 5:
+                v, t = self.prefusion_adapters[i-6](x_image, x_text)
+                x_image = x_image + v
+                x_text = x_text + t
+                x_image = self.visual.transformer.resblocks[i](x_image, self.backbone_adapters_MHSA_vis[i], self.backbone_adapters_MLP_vis[i])
+                x_text = self.transformer.resblocks[i](x_text, self.backbone_adapters_MHSA_txt[i], self.backbone_adapters_MLP_txt[i])
+            else:
+                x_image = self.visual.transformer.resblocks[i](x_image, self.backbone_adapters_MHSA_vis[i], self.backbone_adapters_MLP_vis[i])
+                x_text = self.transformer.resblocks[i](x_text, self.backbone_adapters_MHSA_txt[i], self.backbone_adapters_MLP_txt[i])
+
         
 
         x_image = x_image.permute(1, 0, 2) # batch, CLS+patches, features
@@ -445,9 +450,10 @@ class CLIP(nn.Module):
 
         patch_tokens = patch_tokens.permute(1, 0, 2)
         text_tokens = text_tokens.permute(1, 0, 2)
-        v, t = self.postfusion_adapter(patch_tokens, text_tokens)
-        patch_tokens = v + patch_tokens
-        text_tokens = t + text_tokens
+        for i in range(len(self.postfusion_adapter)):
+            v, t = self.postfusion_adapter[i](patch_tokens, text_tokens)
+            patch_tokens = v + patch_tokens
+            text_tokens = t + text_tokens
 
         return x_image, x_text, patch_tokens.permute(1, 0, 2), text_tokens.permute(1, 0, 2)
     
