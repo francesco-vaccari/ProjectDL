@@ -363,6 +363,32 @@ class CLIP(nn.Module):
 
         self.prefusion_adapters = nn.Sequential(*[PreFusionAdapter(self.vision_width, self.transformer_width, 512, 8) for _ in range(self.vision_layers)])
         self.postfusion_adapter = PostFusionAdapter(shared_dim=self.visual.proj.shape[1], CA_n_head=8, MHSA_n_head=8, MLP_hidden_dim=256)
+    
+    def freeze_for_training(self):
+        for param in self.parameters():
+            param.requires_grad = False
+        for param in self.postfusion_adapter.parameters():
+            param.requires_grad = True
+        for param in self.prefusion_adapters.parameters():
+            param.requires_grad = True
+        for param in self.backbone_adapters_MHSA_vis.parameters():
+            param.requires_grad = True
+        for param in self.backbone_adapters_MHSA_txt.parameters():
+            param.requires_grad = True
+        for param in self.backbone_adapters_MLP_vis.parameters():
+            param.requires_grad = True
+        for param in self.backbone_adapters_MLP_txt.parameters():
+            param.requires_grad = True
+    
+    def load_parameters(self, path):
+        state_dict = torch.load(path)
+        try:
+            self.load_state_dict(state_dict)
+        except RuntimeError:
+            print(f"Failed to load state dict. N keys found: {len(state_dict.keys())}. N keys model: {len(self.state_dict().keys())}")
+
+    def save_state_dict(self, path):
+        torch.save(self.state_dict(), path)
 
     def encode(self, image, text):
         assert(isinstance(self.visual, VisionTransformer))
