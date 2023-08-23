@@ -356,13 +356,13 @@ class CLIP(nn.Module):
     def init_adapters(self):
         vis_hidden_dim = int(self.vision_width / 2) # hidden dimension chosen as half of input embedding
         txt_hidden_dim = int(self.transformer_width / 2) # hidden dimension chosen as half of input embedding
-        self.backbone_adapters_MHSA_vis = nn.Sequential(*[BackboneAdapter(self.vision_width, vis_hidden_dim) for _ in range(self.vision_layers)])
-        self.backbone_adapters_MLP_vis = nn.Sequential(*[BackboneAdapter(self.vision_width, vis_hidden_dim) for _ in range(self.vision_layers)])
-        self.backbone_adapters_MHSA_txt = nn.Sequential(*[BackboneAdapter(self.transformer_width, txt_hidden_dim) for _ in range(self.transformer_layers)])
-        self.backbone_adapters_MLP_txt = nn.Sequential(*[BackboneAdapter(self.transformer_width, txt_hidden_dim) for _ in range(self.transformer_layers)])
+        self.backbone_adapters_MHSA_vis = nn.Sequential(*[BackboneAdapter(self.vision_width, vis_hidden_dim) for _ in range(self.vision_layers)]).to(self.dtype)
+        self.backbone_adapters_MLP_vis = nn.Sequential(*[BackboneAdapter(self.vision_width, vis_hidden_dim) for _ in range(self.vision_layers)]).to(self.dtype)
+        self.backbone_adapters_MHSA_txt = nn.Sequential(*[BackboneAdapter(self.transformer_width, txt_hidden_dim) for _ in range(self.transformer_layers)]).to(self.dtype)
+        self.backbone_adapters_MLP_txt = nn.Sequential(*[BackboneAdapter(self.transformer_width, txt_hidden_dim) for _ in range(self.transformer_layers)]).to(self.dtype)
 
-        self.prefusion_adapters = nn.Sequential(*[PreFusionAdapter(self.vision_width, self.transformer_width, 512, 8) for _ in range(self.vision_layers-6)])
-        self.postfusion_adapter = nn.Sequential(*[PostFusionAdapter(shared_dim=self.visual.proj.shape[1], CA_n_head=8, MHSA_n_head=8, MLP_hidden_dim=256) for _ in range(6)])
+        self.prefusion_adapters = nn.Sequential(*[PreFusionAdapter(self.vision_width, self.transformer_width, 512, 8) for _ in range(self.vision_layers-6)]).to(self.dtype)
+        self.postfusion_adapter = nn.Sequential(*[PostFusionAdapter(shared_dim=self.visual.proj.shape[1], CA_n_head=8, MHSA_n_head=8, MLP_hidden_dim=256) for _ in range(6)]).to(self.dtype)
     
     def freeze_for_training(self):
         for param in self.parameters():
@@ -433,10 +433,10 @@ class CLIP(nn.Module):
 
         if self.visual.proj is not None:
             x_image = x_image @ self.visual.proj # final proj into shared space
-        
+
         # text tokens projected in shared space
-        text_tokens = x_text[torch.arange(x_text.shape[0]), :text.argmax(dim=-1) + 1] @ self.text_projection
-        
+        text_tokens = x_text[torch.arange(x_text.shape[0])] @ self.text_projection
+
         # for each batch, take the last token (EOT) and project it into the shared space
         x_text = x_text[torch.arange(x_text.shape[0]), text.argmax(dim=-1)] @ self.text_projection
 
@@ -455,7 +455,10 @@ class CLIP(nn.Module):
             patch_tokens = v + patch_tokens
             text_tokens = t + text_tokens
 
-        return x_image, x_text, patch_tokens.permute(1, 0, 2), text_tokens.permute(1, 0, 2)
+        return (patch_tokens.permute(1, 0, 2)[:, 0, :], # CLS token of each sample in batch
+                text_tokens.permute(1, 0, 2)[torch.arange(text_tokens.shape[1]), text.argmax(dim=-1)], # EOT token of each sentence
+                patch_tokens.permute(1, 0, 2), # patch tokens
+                text_tokens.permute(1, 0, 2)) # text tokens
     
     def encode_image(self, image):
         return self.visual(image.type(self.dtype))
