@@ -112,6 +112,7 @@ def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler,
                     eval_losses.append(batch_loss)
 
                 eval_loss = torch.mean(torch.tensor(eval_losses)).item()
+                loop.write(f'Epoch {epoch+1}/{num_epochs}\tEval loss: {eval_loss:.4f}')
                 torch.save(model.state_dict(), run_path + "/last.pt")
 
                 if eval_loss < best_eval_loss:
