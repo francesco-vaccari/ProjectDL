@@ -9,6 +9,8 @@ from PIL import Image, ImageDraw
 from RefcocogDataset import RefcocogDataset
 from torch.utils.data import DataLoader
 
+import wandb
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def visualize_sample(sample, bbox, idx=0):
@@ -120,6 +122,7 @@ def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler,
 
             eval_loss = torch.mean(torch.tensor(eval_losses)).item()
             loop.write(f'Epoch {epoch+1}/{num_epochs}\tEval loss: {eval_loss:.4f}')
+            wandb.log({"train_loss": epoch_loss, "eval_loss": eval_loss})
 
             if eval_loss < best_eval_loss:
                 best_eval_loss = eval_loss
@@ -127,9 +130,9 @@ def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler,
         
         scheduler.step()
 
-        torch.save(model.state_dict(), run_path + "/epoch_" + epoch+1 + ".pth")
-        torch.save(optimizer.state_dict(), run_path + "/optimizer_epoch_" + epoch+1 + ".pth")
-        torch.save(scheduler.state_dict(), run_path + "/scheduler_epoch_" + epoch+1 + ".pth")
+        torch.save(model.state_dict(), run_path + "/epoch_" + str(epoch+1) + ".pth")
+        torch.save(optimizer.state_dict(), run_path + "/optimizer_epoch_" + str(epoch+1) + ".pth")
+        torch.save(scheduler.state_dict(), run_path + "/scheduler_epoch_" + str(epoch+1) + ".pth")
 
 
 
@@ -158,5 +161,15 @@ optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 
 scheduler = torch.optim.lr_scheduler.PolynomialLR(optimizer, total_iters=num_epochs)
 # scheduler = load_scheduler(scheduler, path="") # when needed to resume training
 
+wandb.init(project="projectdl", 
+           name='locator', 
+           config={
+               "learning_rate": learning_rate,
+               "weight_decay": weight_decay,
+               "batch_size": batch_size,
+               "num_epochs": num_epochs,
+               "gamma": 3.4
+            }
+)
 
 train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler, val_loader)
