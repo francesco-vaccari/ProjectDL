@@ -173,3 +173,5 @@ wandb.init(project="projectdl",
 )
 
 train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler, val_loader)
+
+wandb.finish()
