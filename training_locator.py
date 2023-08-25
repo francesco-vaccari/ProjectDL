@@ -28,6 +28,14 @@ def visualize_loss(map, bbox, idx, loss_map):
     plt.tight_layout()
     plt.show()
 
+def load_scheduler(scheduler, path):
+    scheduler.load_state_dict(torch.load(path))
+    return scheduler
+
+def load_optimizer(optimizer, path):
+    optimizer.load_state_dict(torch.load(path))
+    return optimizer
+
 class BatchLossFunction(nn.Module):
     def __init__(self, gamma=3.4, average=True):
         super(BatchLossFunction, self).__init__()
@@ -86,7 +94,7 @@ def train_one_epoch(epoch_index, train_loader, model, criterion, optimizer, loop
 
     return torch.mean(torch.tensor(epoch_losses)).item()
 
-def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler, eval_loader = None):
+def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler, eval_loader):
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     run_path = 'runs/run_{}'.format(timestamp)
     cmd = f'mkdir runs; mkdir runs/run_{timestamp}'
@@ -98,37 +106,41 @@ def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler,
     for epoch in loop:
         model.train()
         epoch_loss = train_one_epoch(epoch, train_loader, model, criterion, optimizer, loop)
+        
+
+        model.eval()
+        eval_losses = []
+        with torch.no_grad():
+            for samples, bbox in eval_loader:
+                images = samples['image'].to(device)
+                sentences = clip.tokenize(samples['sentences']).to(device)
+                out_image, out_text, patch_tokens, text_tokens = model.encode(images, sentences)
+                batch_loss = criterion(patch_tokens, out_text, bbox['gt'])
+                eval_losses.append(batch_loss)
+
+            eval_loss = torch.mean(torch.tensor(eval_losses)).item()
+            loop.write(f'Epoch {epoch+1}/{num_epochs}\tEval loss: {eval_loss:.4f}')
+
+            if eval_loss < best_eval_loss:
+                best_eval_loss = eval_loss
+                torch.save(model.state_dict(), run_path + "/best.pth")
+        
         scheduler.step()
 
-        if eval_loader is not None:
-            model.eval()
-            eval_losses = []
-            with torch.no_grad():
-                for samples, bbox in eval_loader:
-                    images = samples['image'].to(device)
-                    sentences = clip.tokenize(samples['sentences']).to(device)
-                    out_image, out_text, patch_tokens, text_tokens = model.encode(images, sentences)
-                    batch_loss = criterion(patch_tokens, out_text, bbox['gt'])
-                    eval_losses.append(batch_loss)
-
-                eval_loss = torch.mean(torch.tensor(eval_losses)).item()
-                loop.write(f'Epoch {epoch+1}/{num_epochs}\tEval loss: {eval_loss:.4f}')
-                torch.save(model.state_dict(), run_path + "/last.pt")
-
-                if eval_loss < best_eval_loss:
-                    best_eval_loss = eval_loss
-                    torch.save(model.state_dict(), run_path + "/best.pt")
+        torch.save(model.state_dict(), run_path + "/epoch_" + epoch+1 + ".pth")
+        torch.save(optimizer.state_dict(), run_path + "/optimizer_epoch_" + epoch+1 + ".pth")
+        torch.save(scheduler.state_dict(), run_path + "/scheduler_epoch_" + epoch+1 + ".pth")
 
 
 
 model, preprocess = clip.load("ViT-B/16") # only works with ViT-B/16
 model.init_adapters() # needed because state dict of clip does not contain adapters, goes before moving to gpu
-# model.load_parameters() # for when we have state dict of adapters trained, goes after adapters init
+# model.load_parameters(path="") # for when we have state dict of adapters trained, goes after adapters init
 model = model.to(device)
 
 model.freeze_for_training() # freezes all clip by putting requires_grad=False and then unfreezes adapters
 
-batch_size = 32 # 32 should be possible
+batch_size = 48 # 48 should be possible
 train_dataset = RefcocogDataset("./refcocog", split="train", transform=preprocess)
 val_dataset = RefcocogDataset("./refcocog", split="val", transform=preprocess)
 test_dataset = RefcocogDataset("./refcocog", split="test", transform=preprocess)
@@ -142,7 +154,9 @@ num_epochs = 60 # 60
 
 criterion = BatchLossFunction(gamma=3.4, average=True) # keep 3.4 for now
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=weight_decay)
+# optimizer = load_optimizer(optimizer, path="") # when needed to resume training
 scheduler = torch.optim.lr_scheduler.PolynomialLR(optimizer, total_iters=num_epochs)
+# scheduler = load_scheduler(scheduler, path="") # when needed to resume training
 
 
 train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler, val_loader)
