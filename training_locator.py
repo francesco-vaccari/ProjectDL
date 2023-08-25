@@ -93,6 +93,7 @@ def train_one_epoch(epoch_index, train_loader, model, criterion, optimizer, loop
         optimizer.step()
 
         epoch_losses.append(batch_loss)
+        wandb.log({"batch_loss": batch_loss.item()})
 
     return torch.mean(torch.tensor(epoch_losses)).item()
 
@@ -108,7 +109,6 @@ def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler,
     for epoch in loop:
         model.train()
         epoch_loss = train_one_epoch(epoch, train_loader, model, criterion, optimizer, loop)
-        
 
         model.eval()
         eval_losses = []
@@ -151,24 +151,25 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-learning_rate = 5e-5
-weight_decay = 5e-3
-num_epochs = 60 # 60
+learning_rate = 1e-3
+weight_decay = 1e-2
+num_epochs = 20 # 60
+gamma = 25
 
-criterion = BatchLossFunction(gamma=3.4, average=True) # keep 3.4 for now
+criterion = BatchLossFunction(gamma=gamma, average=True)
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=weight_decay)
 # optimizer = load_optimizer(optimizer, path="") # when needed to resume training
 scheduler = torch.optim.lr_scheduler.PolynomialLR(optimizer, total_iters=num_epochs)
 # scheduler = load_scheduler(scheduler, path="") # when needed to resume training
 
 wandb.init(project="projectdl", 
-           name='locator', 
+           name='locator3', 
            config={
                "learning_rate": learning_rate,
                "weight_decay": weight_decay,
                "batch_size": batch_size,
                "num_epochs": num_epochs,
-               "gamma": 3.4
+               "gamma": gamma
             }
 )
 
