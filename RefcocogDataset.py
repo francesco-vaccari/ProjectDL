@@ -64,6 +64,8 @@ class RefcocogDataset(Dataset):
         grid = T.Resize(grid_px, interpolation=Image.BICUBIC)(crop)
 
         arr = torch.tensor(np.asarray(grid))
+        arr[arr <= 0.0] = 0 # make the image binary
+        arr[arr > 0.0] = 1 # make the image binary
         return arr
 
     def __get_train_annotations(self):
