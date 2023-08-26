@@ -442,8 +442,7 @@ class CLIP(nn.Module):
 
 
         # layer norm and projection into shared space for patch tokens
-        for token in range(patch_tokens.shape[1]):
-            patch_tokens[:, token] = self.visual.ln_post(patch_tokens[:, token, :])
+        patch_tokens = self.visual.ln_post(patch_tokens)
         if self.visual.proj is not None:
             patch_tokens = patch_tokens @ self.visual.proj
         
