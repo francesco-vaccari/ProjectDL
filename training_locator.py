@@ -65,7 +65,7 @@ def train_one_epoch(epoch_index, train_loader, model, optimizer, loop):
         optimizer.step()
 
         epoch_losses.append(batch_loss)
-        # wandb.log({"batch_loss": batch_loss.item()})
+        wandb.log({"batch_loss": batch_loss.item()})
 
     return torch.mean(torch.tensor(epoch_losses)).item()
 
@@ -134,16 +134,16 @@ optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 
 scheduler = torch.optim.lr_scheduler.PolynomialLR(optimizer, total_iters=num_epochs)
 # scheduler = load_scheduler(scheduler, path="") # when needed to resume training
 
-# wandb.init(project="projectdl", 
-#            name='locator3', 
-#            config={
-#                "learning_rate": learning_rate,
-#                "weight_decay": weight_decay,
-#                "batch_size": batch_size,
-#                "num_epochs": num_epochs,
-#                "loss_fn": "focal loss"
-#             }
-# )
+wandb.init(project="projectdl", 
+           name='locator3', 
+           config={
+               "learning_rate": learning_rate,
+               "weight_decay": weight_decay,
+               "batch_size": batch_size,
+               "num_epochs": num_epochs,
+               "loss_fn": "focal loss"
+            }
+)
 
 train_loop(num_epochs, train_loader, model, optimizer, scheduler, val_loader)
 
