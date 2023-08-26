@@ -32,8 +32,7 @@ def build_probability_map(patch_tokens, out_text, idx):
 
     for i, token in enumerate(patch_tokens):
         map[i] = 1 - torch.cosine_similarity(token, out_text).item() # 1 - ... temporary fix
-
-    map = torch.sigmoid(map)
+    
     map = map.reshape(14, 14)
     return map
 
