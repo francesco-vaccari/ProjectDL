@@ -25,6 +25,21 @@ def load_optimizer(optimizer, path):
     optimizer.load_state_dict(torch.load(path))
     return optimizer
 
+class DiceLoss(nn.Module):
+    def __init__(self):
+        super(DiceLoss, self).__init__()
+
+    def forward(self, inputs, targets, smooth=1):
+        inputs = F.sigmoid(inputs)       
+        
+        inputs = inputs.view(-1)
+        targets = targets.view(-1)
+        
+        intersection = (inputs * targets).sum()                            
+        dice = (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)  
+        
+        return 1 - dice
+
 def build_probability_map(patch_tokens, out_text, idx):
     patch_tokens = patch_tokens[idx, 1:]
     out_text = out_text[idx, :].unsqueeze(0)
@@ -40,8 +55,9 @@ def batch_focal_loss(patch_tokens, out_text, gt_maps):
     loss = torch.zeros(1, requires_grad=True)
     for idx in range(patch_tokens.shape[0]):
         map = build_probability_map(patch_tokens, out_text, idx)
-        sample_loss = focal_loss.sigmoid_focal_loss(map, gt_maps[idx].to(dtype=torch.float32), alpha=0.65, gamma=2, reduction="mean")
-        loss = loss + sample_loss
+        sample_focal_loss = focal_loss.sigmoid_focal_loss(map, gt_maps[idx].to(dtype=torch.float32), alpha=0.65, gamma=2, reduction="mean")
+        sample_dice_loss = DiceLoss()(map, gt_maps[idx].to(dtype=torch.float32))
+        loss = loss + 1.75*sample_focal_loss + sample_dice_loss
     
     return torch.mean(loss)
 
