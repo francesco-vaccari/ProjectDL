@@ -274,6 +274,11 @@ class CLIP(nn.Module):
 
         self.context_length = context_length
 
+        self.fv1 = None
+        self.fv2 = None
+        self.fv3 = None
+        self.fv4 = None
+
         if isinstance(vision_layers, (tuple, list)):
             vision_heads = vision_width * 32 // 64
             self.visual = ModifiedResNet(
@@ -408,7 +413,6 @@ class CLIP(nn.Module):
         x_text = x_text + self.positional_embedding.type(self.dtype)
         x_text = x_text.permute(1, 0, 2)
 
-
         for i in range(self.vision_layers):
             if i > 5:
                 v, t = self.prefusion_adapters[i-6](x_image, x_text)
@@ -417,6 +421,14 @@ class CLIP(nn.Module):
                 x_image = self.visual.transformer.resblocks[i](x_image, self.backbone_adapters_MHSA_vis[i], self.backbone_adapters_MLP_vis[i])
                 x_text = self.transformer.resblocks[i](x_text, self.backbone_adapters_MHSA_txt[i], self.backbone_adapters_MLP_txt[i])
             else:
+                if i == 1:
+                    self.fv1 = x_image
+                elif i == 2:
+                    self.fv2 = x_image
+                elif i == 3:
+                    self.fv3 = x_image
+                elif i == 4:
+                    self.fv4 = x_image
                 x_image = self.visual.transformer.resblocks[i](x_image, self.backbone_adapters_MHSA_vis[i], self.backbone_adapters_MLP_vis[i])
                 x_text = self.transformer.resblocks[i](x_text, self.backbone_adapters_MHSA_txt[i], self.backbone_adapters_MLP_txt[i])
 
@@ -457,7 +469,11 @@ class CLIP(nn.Module):
         return (patch_tokens.permute(1, 0, 2)[:, 0, :], # CLS token of each sample in batch
                 text_tokens.permute(1, 0, 2)[torch.arange(text_tokens.shape[1]), text.argmax(dim=-1)], # EOT token of each sentence
                 patch_tokens.permute(1, 0, 2), # patch tokens
-                text_tokens.permute(1, 0, 2)) # text tokens
+                text_tokens.permute(1, 0, 2), # text tokens
+                [self.fv1.permute(1, 0, 2),
+                self.fv2.permute(1, 0, 2),
+                self.fv3.permute(1, 0, 2),
+                self.fv4.permute(1, 0, 2)])
     
     def encode_image(self, image):
         return self.visual(image.type(self.dtype))

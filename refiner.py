@@ -15,24 +15,23 @@ class Refiner(nn.Module):
     self.sigmoid = nn.Sigmoid()
     self.W.bias.data.fill_(0.)
 
-  def forward(self, p, fv):
+  def forward(self, x, fv):
+    x = x.unsqueeze(0).unsqueeze(0)
     """
     Args:
-      p:  low level probability map (14x14)
+      x:  low level probability map (14x14)
       fv[1]:  image tokens encoded at layer 1
       fv[2]:  image tokens encoded at layer 2
       fv[3]:  image tokens encoded at layer 3
       fv[4]:  image tokens encoded at layer 4
     """
 
-    x = p.unsqueeze(0).unsqueeze(0)
-
     f = fv[3][1:]
     fv4 = torch.zeros((1, 768, 14, 14))
     for c in range(768):
       for i in range(14):
         for j in range(14):
-          fv4[0][c][i][j] = f[(i*14)+j][0][c]
+          fv4[0][c][i][j] = f[(i*14)+j][c]
     
     x = torch.cat([x, fv4], dim=1)
     x = self.conv(x)
@@ -46,7 +45,7 @@ class Refiner(nn.Module):
     for c in range(768):
       for i in range(14):
         for j in range(14):
-          fv3[0][c][i][j] = f[(i*14)+j][0][c]
+          fv3[0][c][i][j] = f[(i*14)+j][c]
     fv3 = nn.functional.interpolate(input=fv3, mode='bilinear', scale_factor=2)
 
     x = torch.cat([x, fv3], dim=1)
@@ -61,7 +60,7 @@ class Refiner(nn.Module):
     for c in range(768):
       for i in range(14):
         for j in range(14):
-          fv2[0][c][i][j] = f[(i*14)+j][0][c]
+          fv2[0][c][i][j] = f[(i*14)+j][c]
     fv2 = nn.functional.interpolate(input=fv2, mode='bilinear', scale_factor=4)
     x = torch.cat([x, fv2], dim=1)
     x = self.conv(x)
@@ -70,12 +69,12 @@ class Refiner(nn.Module):
     x = nn.functional.interpolate(input=x, mode='bilinear', scale_factor=2)
 
 
-    f = fv[1][1:]
+    f = fv[0][1:]
     fv1 = torch.zeros((1, 768, 14, 14))
     for c in range(768):
       for i in range(14):
         for j in range(14):
-          fv1[0][c][i][j] = f[(i*14)+j][0][c]
+          fv1[0][c][i][j] = f[(i*14)+j][c]
     fv1 = nn.functional.interpolate(input=fv1, mode='bilinear', scale_factor=8)
     x = torch.cat([x, fv1], dim=1)
     x = self.conv(x)
