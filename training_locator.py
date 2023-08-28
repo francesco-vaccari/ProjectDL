@@ -84,7 +84,7 @@ def train_one_epoch(epoch_index, train_loader, model, optimizer, loop):
 
     return torch.mean(torch.tensor(epoch_losses)).item()
 
-def train_loop(num_epochs, train_loader, model, optimizer, scheduler, eval_loader):
+def train_loop(num_epochs, train_loader, model, optimizer, scheduler, eval_loader, num_epochs_trained=0):
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     run_path = 'runs/run_{}'.format(timestamp)
     cmd = f'mkdir runs; mkdir runs/run_{timestamp}'
@@ -119,9 +119,9 @@ def train_loop(num_epochs, train_loader, model, optimizer, scheduler, eval_loade
         
         scheduler.step()
 
-        torch.save(model.state_dict(), run_path + "/epoch_" + str(epoch+1) + ".pth")
-        torch.save(optimizer.state_dict(), run_path + "/optimizer_epoch_" + str(epoch+1) + ".pth")
-        torch.save(scheduler.state_dict(), run_path + "/scheduler_epoch_" + str(epoch+1) + ".pth")
+        torch.save(model.state_dict(), run_path + "/epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
+        torch.save(optimizer.state_dict(), run_path + "/optimizer_epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
+        torch.save(scheduler.state_dict(), run_path + "/scheduler_epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
 
 
 
@@ -143,6 +143,7 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 learning_rate = 5e-5 # 5e-5
 weight_decay = 5e-3 # 5e-3
 num_epochs = 60 # change if epochs alredy trained
+num_epochs_trained = 0 # change if epochs alredy trained
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=weight_decay)
 # optimizer = load_optimizer(optimizer, path="") # when needed to resume training
@@ -150,16 +151,17 @@ scheduler = torch.optim.lr_scheduler.PolynomialLR(optimizer, total_iters=num_epo
 # scheduler = load_scheduler(scheduler, path="") # when needed to resume training
 
 wandb.init(project="projectdl", 
-           name='locator3', 
+           name='locator5', 
            config={
                "learning_rate": learning_rate,
                "weight_decay": weight_decay,
                "batch_size": batch_size,
                "num_epochs": num_epochs,
+                "num_epochs_trained": num_epochs_trained,
                "loss_fn": "focal loss"
             }
 )
 
-train_loop(num_epochs, train_loader, model, optimizer, scheduler, val_loader)
+train_loop(num_epochs, train_loader, model, optimizer, scheduler, val_loader, num_epochs_trained)
 
 wandb.finish()
