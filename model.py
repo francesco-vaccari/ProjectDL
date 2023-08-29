@@ -466,14 +466,33 @@ class CLIP(nn.Module):
             patch_tokens = v + patch_tokens
             text_tokens = t + text_tokens
 
-        return (patch_tokens.permute(1, 0, 2)[:, 0, :], # CLS token of each sample in batch
-                text_tokens.permute(1, 0, 2)[torch.arange(text_tokens.shape[1]), text.argmax(dim=-1)], # EOT token of each sentence
-                patch_tokens.permute(1, 0, 2), # patch tokens
-                text_tokens.permute(1, 0, 2), # text tokens
-                [self.fv1.permute(1, 0, 2),
-                self.fv2.permute(1, 0, 2),
-                self.fv3.permute(1, 0, 2),
-                self.fv4.permute(1, 0, 2)])
+        # prendo patch_tokens[:, 1:, :] e faccio similarity con out_text
+        # poi il vettore di similarity per ogni batch faccio reshape in 14x14 e lo ritorno in una lista con tutte le mappe del batch
+
+        tokens = patch_tokens.permute(1, 0, 2)[:, 1:, :]
+        out_text = text_tokens.permute(1, 0, 2)[torch.arange(text_tokens.shape[1]), text.argmax(dim=-1)]
+
+        maps = []
+        for i in range(tokens.shape[0]):
+            map = 1 - torch.cosine_similarity(tokens[i], out_text[i])
+            map = map.reshape(14, 14)
+            maps.append(map)
+        
+        maps = torch.stack(maps)
+
+        return maps, [self.fv1.permute(1, 0, 2), 
+                      self.fv1.permute(1, 0, 2), 
+                      self.fv1.permute(1, 0, 2), 
+                      self.fv1.permute(1, 0, 2)]
+    
+        # return (patch_tokens.permute(1, 0, 2)[:, 0, :], # CLS token of each sample in batch
+        #         text_tokens.permute(1, 0, 2)[torch.arange(text_tokens.shape[1]), text.argmax(dim=-1)], # EOT token of each sentence
+        #         patch_tokens.permute(1, 0, 2), # patch tokens
+        #         text_tokens.permute(1, 0, 2), # text tokens
+        #         [self.fv1.permute(1, 0, 2),
+        #         self.fv2.permute(1, 0, 2),
+        #         self.fv3.permute(1, 0, 2),
+        #         self.fv4.permute(1, 0, 2)])
     
     def encode_image(self, image):
         return self.visual(image.type(self.dtype))

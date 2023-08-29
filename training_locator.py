@@ -30,7 +30,7 @@ class DiceLoss(nn.Module):
         super(DiceLoss, self).__init__()
 
     def forward(self, inputs, targets, smooth=1):
-        inputs = F.sigmoid(inputs)       
+        inputs = torch.sigmoid(inputs)
         
         inputs = inputs.view(-1)
         targets = targets.view(-1)
@@ -39,30 +39,21 @@ class DiceLoss(nn.Module):
         dice = (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)  
         
         return 1 - dice
-
-def build_probability_map(patch_tokens, out_text, idx):
-    patch_tokens = patch_tokens[idx, 1:]
-    out_text = out_text[idx, :].unsqueeze(0)
-    map = torch.zeros(196)
-
-    for i, token in enumerate(patch_tokens):
-        map[i] = 1 - torch.cosine_similarity(token, out_text).item() # 1 - ... temporary fix
     
-    map = map.reshape(14, 14)
-    return map
+class CustomLoss(nn.Module):
+    def __init__(self, alpha, gamma):
+        super(CustomLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
 
-def batch_focal_loss(patch_tokens, out_text, gt_maps):
-    loss = torch.zeros(1, requires_grad=True)
-    for idx in range(patch_tokens.shape[0]):
-        map = build_probability_map(patch_tokens, out_text, idx)
-        sample_focal_loss = focal_loss.sigmoid_focal_loss(map, gt_maps[idx].to(dtype=torch.float32), alpha=0.65, gamma=2, reduction="mean")
-        sample_dice_loss = DiceLoss()(map, gt_maps[idx].to(dtype=torch.float32))
-        loss = loss + 1.75*sample_focal_loss + sample_dice_loss
-    
-    return torch.mean(loss)
+    def forward(self, inputs, targets):
+        f_loss = focal_loss.sigmoid_focal_loss(inputs, targets, alpha=self.alpha, gamma=self.gamma, reduction="mean")
+        d_loss = DiceLoss()(inputs, targets)
+        loss = 1.75*f_loss + 1*d_loss
+        return loss
 
 
-def train_one_epoch(epoch_index, train_loader, model, optimizer, loop):
+def train_one_epoch(epoch_index, train_loader, model, criterion, optimizer, loop):
     epoch_losses = []
     for i, (samples, bbox) in enumerate(train_loader):
         loop.set_postfix_str(f'Batch {i+1}/{len(train_loader)}')
@@ -72,19 +63,22 @@ def train_one_epoch(epoch_index, train_loader, model, optimizer, loop):
         images = samples['image'].to(device)
         sentences = clip.tokenize(samples['sentences']).to(device)
 
-        out_image, out_text, patch_tokens, text_tokens = model.encode(images, sentences)
+        maps, fv = model.encode(images, sentences)
 
-        batch_loss = batch_focal_loss(patch_tokens, out_text, bbox['gt'])
-
+        batch_loss = criterion(maps, bbox['gt'].to(dtype=torch.float32))
+        for param in model.backbone_adapters_MLP_vis[0].up_proj.parameters():
+            print(param)
         batch_loss.backward()
         optimizer.step()
+        for param in model.backbone_adapters_MLP_vis[0].up_proj.parameters():
+            print(param)
 
         epoch_losses.append(batch_loss)
         wandb.log({"batch_loss": batch_loss.item()})
 
     return torch.mean(torch.tensor(epoch_losses)).item()
 
-def train_loop(num_epochs, train_loader, model, optimizer, scheduler, eval_loader, num_epochs_trained=0):
+def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler, eval_loader, num_epochs_trained=0):
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     run_path = 'runs/run_{}'.format(timestamp)
     cmd = f'mkdir runs; mkdir runs/run_{timestamp}'
@@ -95,7 +89,7 @@ def train_loop(num_epochs, train_loader, model, optimizer, scheduler, eval_loade
     loop = tqdm(range(num_epochs), desc="Training locator", leave=True)
     for epoch in loop:
         model.train()
-        epoch_loss = train_one_epoch(epoch, train_loader, model, optimizer, loop)
+        epoch_loss = train_one_epoch(epoch, train_loader, model, criterion, optimizer, loop)
 
         model.eval()
         eval_losses = []
@@ -103,9 +97,9 @@ def train_loop(num_epochs, train_loader, model, optimizer, scheduler, eval_loade
             for samples, bbox in eval_loader:
                 images = samples['image'].to(device)
                 sentences = clip.tokenize(samples['sentences']).to(device)
-                out_image, out_text, patch_tokens, text_tokens = model.encode(images, sentences)
+                maps, fv = model.encode(images, sentences)
 
-                batch_loss = batch_focal_loss(patch_tokens, out_text, bbox['gt'])
+                batch_loss = criterion(maps, bbox['gt'].to(dtype=torch.float32))
 
                 eval_losses.append(batch_loss)
 
@@ -145,6 +139,7 @@ weight_decay = 5e-3 # 5e-3
 num_epochs = 60 # change if epochs alredy trained
 num_epochs_trained = 0 # change if epochs alredy trained
 
+criterion = CustomLoss(alpha=0.65, gamma=2)
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=weight_decay)
 # optimizer = load_optimizer(optimizer, path="") # when needed to resume training
 scheduler = torch.optim.lr_scheduler.PolynomialLR(optimizer, total_iters=num_epochs)
@@ -158,10 +153,10 @@ wandb.init(project="projectdl",
                "batch_size": batch_size,
                "num_epochs": num_epochs,
                 "num_epochs_trained": num_epochs_trained,
-               "loss_fn": "focal loss"
+               "loss_fn": "1.75*focal+dice loss"
             }
 )
 
-train_loop(num_epochs, train_loader, model, optimizer, scheduler, val_loader, num_epochs_trained)
+train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler, val_loader, num_epochs_trained)
 
 wandb.finish()
