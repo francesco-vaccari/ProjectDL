@@ -2,6 +2,7 @@ import clip
 import torch
 from PIL import Image
 from matplotlib import pyplot as plt
+from src.dataset.RefcocogDataset import RefcocogDataset
 
 model, preprocess = clip.load("ViT-B/16")
 model.init_adapters()

@@ -7,7 +7,7 @@ import numpy as np
 import argparse
 from PIL import Image, ImageDraw
 
-from RefcocogDataset import RefcocogDataset
+from dataset.RefcocogDataset import RefcocogDataset
 from torch.utils.data import DataLoader
 
 import torchvision.ops.focal_loss as focal_loss
@@ -24,7 +24,7 @@ arg = argparse.ArgumentParser()
 arg.add_argument("--name", type=str, default='run_{}'.format(datetime.now().strftime('%Y%m%d_%H%M%S')), help="Name of the run")
 arg.add_argument("--batch_size", type=int, default=32, help="Batch size")
 arg.add_argument("--num_epochs", type=int, default=60, help="Number of epochs")
-arg.add_argument("--dataset", type=str, default="../../../Dataset/refcocog", help="Dataset to use")
+arg.add_argument("--dataset", type=str, default="../Dataset/refcocog", help="Dataset to use")
 arg.add_argument("-l", "--logwandb", help="Log training on wandb", action="store_true")
 
 args = vars(arg.parse_args())
