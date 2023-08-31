@@ -51,25 +51,25 @@ class DiceLoss(nn.Module):
         super(DiceLoss, self).__init__()
 
     def forward(self, inputs, targets, smooth=1):
-        inputs = torch.sigmoid(inputs)
+        # inputs = torch.sigmoid(inputs)
         
-        inputs = inputs.view(-1)
-        targets = targets.view(-1)
+        # inputs = inputs.view(-1)
+        # targets = targets.view(-1)
         
-        intersection = (inputs * targets).sum()                            
-        dice = (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)  
-        return 1 - dice
-        # smooth = 1.
+        # intersection = (inputs * targets).sum()                            
+        # dice = (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)  
+        # return 1 - dice
+        smooth = 1.
 
-        # # have to use contiguous since they may from a torch.view op
-        # iflat = inputs.contiguous().view(-1)
-        # tflat = targets.contiguous().view(-1)
-        # intersection = (iflat * tflat).sum()
+        # have to use contiguous since they may from a torch.view op
+        iflat = inputs.contiguous().view(-1)
+        tflat = targets.contiguous().view(-1)
+        intersection = (iflat * tflat).sum()
 
-        # A_sum = torch.sum(tflat * iflat)
-        # B_sum = torch.sum(tflat * tflat)
+        A_sum = torch.sum(tflat * iflat)
+        B_sum = torch.sum(tflat * tflat)
         
-        # return 1 - ((2. * intersection + smooth) / (A_sum + B_sum + smooth) )
+        return 1 - ((2. * intersection + smooth) / (A_sum + B_sum + smooth) )
         
     
 class CustomLoss(nn.Module):
