@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import numpy as np
+import argparse
 from PIL import Image, ImageDraw
 
 from RefcocogDataset import RefcocogDataset
@@ -15,10 +16,27 @@ from datetime import datetime
 from tqdm import tqdm
 import os
 
+############################################
+# DEFINE ARGUMENTS
+############################################
+
+arg = argparse.ArgumentParser()
+arg.add_argument("--name", type=str, default='run_{}'.format(datetime.now().strftime('%Y%m%d_%H%M%S')), help="Name of the run")
+arg.add_argument("--batch_size", type=int, default=32, help="Batch size")
+arg.add_argument("--num_epochs", type=int, default=60, help="Number of epochs")
+arg.add_argument("--dataset", type=str, default="../Dataset/refcocog", help="Dataset to use")
+arg.add_argument("-l", "--logwandb", help="Log training on wandb", action="store_true")
+
+args = vars(arg.parse_args())
+
+logwandb = args["logwandb"]
+
+############################################
+# DEFINE TRAINING FUNCTIONS
+############################################
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.autograd.set_detect_anomaly(True)
-
-logwandb = True
 
 def load_scheduler(scheduler, path):
     scheduler.load_state_dict(torch.load(path))
@@ -101,7 +119,7 @@ def train_one_epoch(epoch_index, train_loader, model, criterion, optimizer, loop
         # for param in model.backbone_adapters_MLP_vis[0].up_proj.parameters():
         #     print(param)
 
-        epoch_losses.append(batch_loss)
+        epoch_losses.append(batch_loss.item())
 
         if logwandb:
             wandb.log({"batch_loss": batch_loss.item()})
@@ -131,7 +149,7 @@ def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler,
 
                 batch_loss = criterion(maps, bbox['gt'].to(device, dtype=torch.float32))
 
-                eval_losses.append(batch_loss)
+                eval_losses.append(batch_loss.item())
 
             eval_loss = torch.mean(torch.tensor(eval_losses)).item()
             loop.write(f'Epoch {epoch+1}/{num_epochs}\tEval loss: {eval_loss:.4f}')
@@ -161,10 +179,10 @@ if __name__ == "__main__":
     # INITIALIZE DATASET
     ########################################
 
-    batch_size = 32 # 48 should be possible
-    train_dataset = RefcocogDataset("../Dataset/refcocog", split="train", transform=preprocess)
-    val_dataset = RefcocogDataset("../Dataset/refcocog", split="val", transform=preprocess)
-    test_dataset = RefcocogDataset("../Dataset/refcocog", split="test", transform=preprocess)
+    batch_size = args["batch_size"]
+    train_dataset = RefcocogDataset(args["dataset"], split="train", transform=preprocess)
+    val_dataset = RefcocogDataset(args["dataset"], split="val", transform=preprocess)
+    test_dataset = RefcocogDataset(args["dataset"], split="test", transform=preprocess)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
@@ -175,7 +193,7 @@ if __name__ == "__main__":
 
     learning_rate = 5e-5 # 5e-5
     weight_decay = 5e-3 # 5e-3
-    num_epochs = 60 # change if epochs alredy trained
+    num_epochs = args["num_epochs"] # change if epochs alredy trained
     num_epochs_trained = 0 # change if epochs alredy trained
 
 
@@ -203,7 +221,7 @@ if __name__ == "__main__":
 
     if logwandb:
         wandb.init(project="projectdl", 
-                name='run_{}'.format(datetime.now().strftime('%Y%m%d_%H%M%S')), 
+                name=args["name"], 
                 config={
                     "learning_rate": learning_rate,
                     "weight_decay": weight_decay,
