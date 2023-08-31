@@ -51,34 +51,25 @@ class DiceLoss(nn.Module):
         super(DiceLoss, self).__init__()
 
     def forward(self, inputs, targets, smooth=1):
-        # inputs = torch.sigmoid(inputs)
+        inputs = torch.sigmoid(inputs)
         
-        # inputs = inputs.view(-1)
-        # targets = targets.view(-1)
+        inputs = inputs.view(-1)
+        targets = targets.view(-1)
         
-        # print("### DEBUG LOSS FUNCTION")
-        # print(inputs)
-        # print(targets)
-        # print(targets.sum())
-        
-        # intersection = (inputs * targets).sum()                            
-        # print(intersection)
-        # dice = (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)  
-        # print(dice)
-        # print("### END --- DEBUG LOSS FUNCTION")
+        intersection = (inputs * targets).sum()                            
+        dice = (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)  
+        return 1 - dice
+        # smooth = 1.
 
-        # return 1 - dice
-        smooth = 1.
+        # # have to use contiguous since they may from a torch.view op
+        # iflat = inputs.contiguous().view(-1)
+        # tflat = targets.contiguous().view(-1)
+        # intersection = (iflat * tflat).sum()
 
-        # have to use contiguous since they may from a torch.view op
-        iflat = inputs.contiguous().view(-1)
-        tflat = targets.contiguous().view(-1)
-        intersection = (iflat * tflat).sum()
-
-        A_sum = torch.sum(tflat * iflat)
-        B_sum = torch.sum(tflat * tflat)
+        # A_sum = torch.sum(tflat * iflat)
+        # B_sum = torch.sum(tflat * tflat)
         
-        return 1 - ((2. * intersection + smooth) / (A_sum + B_sum + smooth) )
+        # return 1 - ((2. * intersection + smooth) / (A_sum + B_sum + smooth) )
         
     
 class CustomLoss(nn.Module):
@@ -128,18 +119,24 @@ def train_one_epoch(epoch_index, train_loader, model, criterion, optimizer, loop
 
 def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler, eval_loader, num_epochs_trained=0):
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    run_path = 'runs/run_{}'.format(timestamp)
-    cmd = f'mkdir runs; mkdir runs/run_{timestamp}'
-    os.system(cmd)
+
+    # create folder for run
+    run_path = 'runs/{}'.format(args["name"])
+    if not os.path.exists(run_path):
+        os.mkdir(run_path)
 
     best_eval_loss = float('inf')
 
     loop = tqdm(range(num_epochs), desc="Training locator", leave=True)
     for epoch in loop:
         model.train()
+
+        # TRAIN ONE EPOCH
         epoch_loss = train_one_epoch(epoch, train_loader, model, criterion, optimizer, loop)
 
         model.eval()
+
+        # EVALUATE MODEL
         eval_losses = []
         with torch.no_grad():
             for samples, bbox in eval_loader:
@@ -163,8 +160,8 @@ def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler,
         scheduler.step()
 
         torch.save(model.cpu().state_dict(), run_path + "/epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
-        torch.save(optimizer.cpu().state_dict(), run_path + "/optimizer_epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
-        torch.save(scheduler.cpu().state_dict(), run_path + "/scheduler_epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
+        torch.save(optimizer.state_dict(), run_path + "/optimizer_epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
+        torch.save(scheduler.state_dict(), run_path + "/scheduler_epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
 
 
 if __name__ == "__main__":
