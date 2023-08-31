@@ -149,17 +149,19 @@ def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler,
                 eval_losses.append(batch_loss.item())
 
             eval_loss = torch.mean(torch.tensor(eval_losses)).item()
+
             loop.write(f'Epoch {epoch+1}/{num_epochs}\tEval loss: {eval_loss:.4f}')
+
             if logwandb:
                 wandb.log({"train_loss": epoch_loss, "eval_loss": eval_loss})
 
             if eval_loss < best_eval_loss:
                 best_eval_loss = eval_loss
-                torch.save(model.cpu().state_dict(), run_path + "/best.pth")
+                torch.save(model.state_dict(), run_path + "/best.pth")
         
         scheduler.step()
 
-        torch.save(model.cpu().state_dict(), run_path + "/epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
+        torch.save(model.state_dict(), run_path + "/epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
         torch.save(optimizer.state_dict(), run_path + "/optimizer_epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
         torch.save(scheduler.state_dict(), run_path + "/scheduler_epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
 
