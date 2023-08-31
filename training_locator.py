@@ -10,7 +10,7 @@ from RefcocogDataset import RefcocogDataset
 from torch.utils.data import DataLoader
 
 import torchvision.ops.focal_loss as focal_loss
-import wandb
+# import wandb
 from datetime import datetime
 from tqdm import tqdm
 import os
@@ -65,16 +65,17 @@ def train_one_epoch(epoch_index, train_loader, model, criterion, optimizer, loop
 
         maps, fv = model.encode(images, sentences)
 
-        batch_loss = criterion(maps, bbox['gt'].to(dtype=torch.float32))
-        for param in model.backbone_adapters_MLP_vis[0].up_proj.parameters():
-            print(param)
+        batch_loss = criterion(maps, bbox['gt'].to(dtype=torch.float32).to(device))
+        print(model.backbone_adapters_MLP_vis[0].up_proj.weight)
         batch_loss.backward()
+        print(model.backbone_adapters_MLP_vis[0].up_proj.weight)
         optimizer.step()
-        for param in model.backbone_adapters_MLP_vis[0].up_proj.parameters():
-            print(param)
+        print(model.backbone_adapters_MLP_vis[0].up_proj.weight)
+        import time
+        time.sleep(20)
 
         epoch_losses.append(batch_loss)
-        wandb.log({"batch_loss": batch_loss.item()})
+        # wandb.log({"batch_loss": batch_loss.item()})
 
     return torch.mean(torch.tensor(epoch_losses)).item()
 
@@ -99,23 +100,23 @@ def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler,
                 sentences = clip.tokenize(samples['sentences']).to(device)
                 maps, fv = model.encode(images, sentences)
 
-                batch_loss = criterion(maps, bbox['gt'].to(dtype=torch.float32))
+                batch_loss = criterion(maps, bbox['gt'].to(dtype=torch.float32).to(device))
 
                 eval_losses.append(batch_loss)
 
             eval_loss = torch.mean(torch.tensor(eval_losses)).item()
             loop.write(f'Epoch {epoch+1}/{num_epochs}\tEval loss: {eval_loss:.4f}')
-            wandb.log({"train_loss": epoch_loss, "eval_loss": eval_loss})
+            # wandb.log({"train_loss": epoch_loss, "eval_loss": eval_loss})
 
             if eval_loss < best_eval_loss:
                 best_eval_loss = eval_loss
-                torch.save(model.state_dict(), run_path + "/best.pth")
+                torch.save(model.cpu().state_dict(), run_path + "/best.pth")
         
         scheduler.step()
 
-        torch.save(model.state_dict(), run_path + "/epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
-        torch.save(optimizer.state_dict(), run_path + "/optimizer_epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
-        torch.save(scheduler.state_dict(), run_path + "/scheduler_epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
+        torch.save(model.cpu().state_dict(), run_path + "/epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
+        torch.save(optimizer.cpu().state_dict(), run_path + "/optimizer_epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
+        torch.save(scheduler.cpu().state_dict(), run_path + "/scheduler_epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
 
 
 
@@ -126,7 +127,7 @@ model = model.to(device)
 
 model.freeze_for_training() # freezes all clip by putting requires_grad=False and then unfreezes adapters
 
-batch_size = 48 # 48 should be possible
+batch_size = 2 # 48 should be possible
 train_dataset = RefcocogDataset("./refcocog", split="train", transform=preprocess)
 val_dataset = RefcocogDataset("./refcocog", split="val", transform=preprocess)
 test_dataset = RefcocogDataset("./refcocog", split="test", transform=preprocess)
@@ -145,18 +146,18 @@ optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 
 scheduler = torch.optim.lr_scheduler.PolynomialLR(optimizer, total_iters=num_epochs)
 # scheduler = load_scheduler(scheduler, path="") # when needed to resume training
 
-wandb.init(project="projectdl", 
-           name='locator5', 
-           config={
-               "learning_rate": learning_rate,
-               "weight_decay": weight_decay,
-               "batch_size": batch_size,
-               "num_epochs": num_epochs,
-                "num_epochs_trained": num_epochs_trained,
-               "loss_fn": "1.75*focal+dice loss"
-            }
-)
+# wandb.init(project="projectdl", 
+#            name='locator5', 
+#            config={
+#                "learning_rate": learning_rate,
+#                "weight_decay": weight_decay,
+#                "batch_size": batch_size,
+#                "num_epochs": num_epochs,
+#                 "num_epochs_trained": num_epochs_trained,
+#                "loss_fn": "1.75*focal+dice loss"
+#             }
+# )
 
 train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler, val_loader, num_epochs_trained)
 
-wandb.finish()
+# wandb.finish()

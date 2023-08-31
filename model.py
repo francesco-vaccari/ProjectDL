@@ -367,12 +367,12 @@ class CLIP(nn.Module):
         self.backbone_adapters_MLP_txt = nn.Sequential(*[BackboneAdapter(self.transformer_width, txt_hidden_dim) for _ in range(self.transformer_layers)]).to(self.dtype)
 
         self.prefusion_adapters = nn.Sequential(*[PreFusionAdapter(self.vision_width, self.transformer_width, shared_dim=512, n_head=8) for _ in range(self.vision_layers-6)]).to(self.dtype)
-        self.postfusion_adapter = nn.Sequential(*[PostFusionAdapter(shared_dim=self.visual.proj.shape[1], CA_n_head=8, MHSA_n_head=8, MLP_hidden_dim=256) for _ in range(6)]).to(self.dtype)
+        self.postfusion_adapters = nn.Sequential(*[PostFusionAdapter(shared_dim=self.visual.proj.shape[1], CA_n_head=8, MHSA_n_head=8, MLP_hidden_dim=256) for _ in range(6)]).to(self.dtype)
     
     def freeze_for_training(self):
         for param in self.parameters():
             param.requires_grad = False
-        for param in self.postfusion_adapter.parameters():
+        for param in self.postfusion_adapters.parameters():
             param.requires_grad = True
         for param in self.prefusion_adapters.parameters():
             param.requires_grad = True
@@ -461,8 +461,8 @@ class CLIP(nn.Module):
 
         patch_tokens = patch_tokens.permute(1, 0, 2)
         text_tokens = text_tokens.permute(1, 0, 2)
-        for i in range(len(self.postfusion_adapter)):
-            v, t = self.postfusion_adapter[i](patch_tokens, text_tokens)
+        for i in range(len(self.postfusion_adapters)):
+            v, t = self.postfusion_adapters[i](patch_tokens, text_tokens)
             patch_tokens = v + patch_tokens
             text_tokens = t + text_tokens
 
