@@ -66,13 +66,8 @@ def train_one_epoch(epoch_index, train_loader, model, criterion, optimizer, loop
         maps, fv = model.encode(images, sentences)
 
         batch_loss = criterion(maps, bbox['gt'].to(dtype=torch.float32).to(device))
-        print(model.backbone_adapters_MLP_vis[0].up_proj.weight)
         batch_loss.backward()
-        print(model.backbone_adapters_MLP_vis[0].up_proj.weight)
         optimizer.step()
-        print(model.backbone_adapters_MLP_vis[0].up_proj.weight)
-        import time
-        time.sleep(20)
 
         epoch_losses.append(batch_loss)
         # wandb.log({"batch_loss": batch_loss.item()})
