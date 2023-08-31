@@ -370,22 +370,6 @@ class CLIP(nn.Module):
         self.postfusion_adapters = nn.Sequential(*[PostFusionAdapter(shared_dim=self.visual.proj.shape[1], CA_n_head=8, MHSA_n_head=8, MLP_hidden_dim=256) for _ in range(6)]).to(self.dtype)
     
     def freeze_for_training(self):
-<<<<<<< Updated upstream
-        for param in self.parameters():
-            param.requires_grad = False
-        for param in self.postfusion_adapters.parameters():
-            param.requires_grad = True
-        for param in self.prefusion_adapters.parameters():
-            param.requires_grad = True
-        for param in self.backbone_adapters_MHSA_vis.parameters():
-            param.requires_grad = True
-        for param in self.backbone_adapters_MHSA_txt.parameters():
-            param.requires_grad = True
-        for param in self.backbone_adapters_MLP_vis.parameters():
-            param.requires_grad = True
-        for param in self.backbone_adapters_MLP_txt.parameters():
-            param.requires_grad = True
-=======
         self.visual.eval()
         for param in self.visual.parameters():
             param.requires_grad_ = False
@@ -398,7 +382,6 @@ class CLIP(nn.Module):
         for param in self.token_embedding.parameters():
             param.requires_grad_ = False
         
->>>>>>> Stashed changes
     
     def load_parameters(self, path):
         state_dict = torch.load(path)
