@@ -24,7 +24,7 @@ arg = argparse.ArgumentParser()
 arg.add_argument("--name", type=str, default='run_{}'.format(datetime.now().strftime('%Y%m%d_%H%M%S')), help="Name of the run")
 arg.add_argument("--batch_size", type=int, default=32, help="Batch size")
 arg.add_argument("--num_epochs", type=int, default=60, help="Number of epochs")
-arg.add_argument("--dataset", type=str, default="../Dataset/refcocog", help="Dataset to use")
+arg.add_argument("--dataset", type=str, default="../../../Dataset/refcocog", help="Dataset to use")
 arg.add_argument("-l", "--logwandb", help="Log training on wandb", action="store_true")
 
 args = vars(arg.parse_args())
