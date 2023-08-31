@@ -10,16 +10,15 @@ from RefcocogDataset import RefcocogDataset
 from torch.utils.data import DataLoader
 
 import torchvision.ops.focal_loss as focal_loss
-# import wandb
+import wandb
 from datetime import datetime
 from tqdm import tqdm
 import os
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# device = torch.device("cpu")
 torch.autograd.set_detect_anomaly(True)
 
-logwandb = False
+logwandb = True
 
 def load_scheduler(scheduler, path):
     scheduler.load_state_dict(torch.load(path))
@@ -98,10 +97,12 @@ def train_one_epoch(epoch_index, train_loader, model, criterion, optimizer, loop
         batch_loss.backward()
         optimizer.step()
 
-        for param in model.backbone_adapters_MLP_vis[0].up_proj.parameters():
-            print(param)
+        # PARAMETER DEBUG
+        # for param in model.backbone_adapters_MLP_vis[0].up_proj.parameters():
+        #     print(param)
 
         epoch_losses.append(batch_loss)
+
         if logwandb:
             wandb.log({"batch_loss": batch_loss.item()})
 
@@ -202,7 +203,7 @@ if __name__ == "__main__":
 
     if logwandb:
         wandb.init(project="projectdl", 
-                name='locator5', 
+                name='run_{}'.format(datetime.now().strftime('%Y%m%d_%H%M%S')), 
                 config={
                     "learning_rate": learning_rate,
                     "weight_decay": weight_decay,
