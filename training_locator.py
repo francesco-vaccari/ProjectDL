@@ -1,16 +1,11 @@
 import clip
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
-import numpy as np
 import argparse
-from PIL import Image, ImageDraw
 
 from dataset.RefcocogDataset import RefcocogDataset
 from torch.utils.data import DataLoader
 
-import torchvision.ops.focal_loss as focal_loss
+from FocalDiceLoss import FocalDiceLoss
 import wandb
 from datetime import datetime
 from tqdm import tqdm
@@ -22,7 +17,7 @@ import os
 
 arg = argparse.ArgumentParser()
 arg.add_argument("--name", type=str, default='run_{}'.format(datetime.now().strftime('%Y%m%d_%H%M%S')), help="Name of the run")
-arg.add_argument("--batch_size", type=int, default=32, help="Batch size")
+arg.add_argument("--batch_size", type=int, default=16, help="Batch size")
 arg.add_argument("--num_epochs", type=int, default=60, help="Number of epochs")
 arg.add_argument("--dataset", type=str, default="../Dataset/refcocog", help="Dataset to use")
 arg.add_argument("-l", "--logwandb", help="Log training on wandb", action="store_true")
@@ -45,46 +40,6 @@ def load_scheduler(scheduler, path):
 def load_optimizer(optimizer, path):
     optimizer.load_state_dict(torch.load(path))
     return optimizer
-
-class DiceLoss(nn.Module):
-    def __init__(self):
-        super(DiceLoss, self).__init__()
-
-    def forward(self, inputs, targets, smooth=1):
-        # inputs = torch.sigmoid(inputs)
-        
-        # inputs = inputs.view(-1)
-        # targets = targets.view(-1)
-        
-        # intersection = (inputs * targets).sum()                            
-        # dice = (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)  
-        # return 1 - dice
-        smooth = 1.
-
-        # have to use contiguous since they may from a torch.view op
-        iflat = inputs.contiguous().view(-1)
-        tflat = targets.contiguous().view(-1)
-        intersection = (iflat * tflat).sum()
-
-        A_sum = torch.sum(tflat * iflat)
-        B_sum = torch.sum(tflat * tflat)
-        
-        return 1 - ((2. * intersection + smooth) / (A_sum + B_sum + smooth) )
-        
-    
-class CustomLoss(nn.Module):
-    def __init__(self, alpha, gamma):
-        super(CustomLoss, self).__init__()
-        self.alpha = alpha
-        self.gamma = gamma
-
-        self.diceLoss = DiceLoss()
-
-    def forward(self, inputs, targets):
-        f_loss = focal_loss.sigmoid_focal_loss(inputs, targets, alpha=self.alpha, gamma=self.gamma, reduction="mean")
-        d_loss = self.diceLoss(inputs, targets)
-        loss = 1.75*f_loss + 1*d_loss
-        return loss
 
 
 def train_one_epoch(epoch_index, train_loader, model, criterion, optimizer, loop):
@@ -205,14 +160,15 @@ if __name__ == "__main__":
     model.freeze_for_training() # freezes all clip by putting requires_grad=False and then unfreezes adapters
 
     model = model.to(device)
+    model.to(torch.float32)
 
 
     ########################################
     # INITIALIZE LOSS FUNCTION, OPTIMIZER AND SCHEDULER
     ########################################
 
-    criterion = CustomLoss(alpha=0.65, gamma=2)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=weight_decay, eps=1e-04)
+    criterion = FocalDiceLoss()
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=weight_decay, eps=1e-08)
     # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=weight_decay)
     # optimizer = load_optimizer(optimizer, path="") # when needed to resume training
     scheduler = torch.optim.lr_scheduler.PolynomialLR(optimizer, total_iters=num_epochs)
