@@ -370,18 +370,20 @@ class CLIP(nn.Module):
         self.postfusion_adapters = nn.Sequential(*[PostFusionAdapter(shared_dim=self.visual.proj.shape[1], CA_n_head=8, MHSA_n_head=8, MLP_hidden_dim=256) for _ in range(6)]).to(self.dtype)
     
     def freeze_for_training(self):
-        self.visual.eval()
-        for param in self.visual.parameters():
-            param.requires_grad_ = False
-        
-        self.transformer.eval()
-        for param in self.transformer.parameters():
-            param.requires_grad_ = False
-        
-        self.token_embedding.eval()
-        for param in self.token_embedding.parameters():
-            param.requires_grad_ = False
-        
+        for param in self.parameters():
+            param.requires_grad = False
+        for param in self.postfusion_adapters.parameters():
+            param.requires_grad = True
+        for param in self.prefusion_adapters.parameters():
+            param.requires_grad = True
+        for param in self.backbone_adapters_MHSA_vis.parameters():
+            param.requires_grad = True
+        for param in self.backbone_adapters_MHSA_txt.parameters():
+            param.requires_grad = True
+        for param in self.backbone_adapters_MLP_vis.parameters():
+            param.requires_grad = True
+        for param in self.backbone_adapters_MLP_txt.parameters():
+            param.requires_grad = True
     
     def load_parameters(self, path):
         state_dict = torch.load(path)
@@ -472,7 +474,8 @@ class CLIP(nn.Module):
 
         maps = []
         for i in range(tokens.shape[0]):
-            map = 1 - torch.cosine_similarity(tokens[i], out_text[i])
+            # map = 1 - torch.cosine_similarity(tokens[i], out_text[i])
+            map = torch.cosine_similarity(tokens[i], out_text[i])
             map = map.reshape(14, 14)
             maps.append(map)
         
@@ -588,5 +591,4 @@ def build_model(state_dict: dict):
 
     convert_weights(model)
     model.load_state_dict(state_dict)
-    model.init_adapters() # adds adapters after original state dict has been loaded
     return model.eval()
