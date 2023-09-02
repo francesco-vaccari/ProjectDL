@@ -103,17 +103,3 @@ class RefcocogDataset(Dataset):
         sample = {'idx': idx, 'image': image, 'sentences': sentences}
 
         return sample, {'bbox': item.bbox, 'gt': self.__computeGroundTruth(item)}
-
-
-if __name__ == "__main__":
-    _, preprocess = clip.load("ViT-B/32")
-
-    dataset = RefcocogDataset("../Dataset/refcocog", split="train", tokenization=clip.tokenize, transform=preprocess)
-    train, val = random_split(dataset, [0.8, 0.2])
-    train_dataloader = DataLoader(train)
-
-    train_features, train_bbox = next(iter(train_dataloader))
-    dataset.getImage(train_features).show()
-    print(dataset.getSentences(train_features))
-    print(len(train))
-    print(len(val))
