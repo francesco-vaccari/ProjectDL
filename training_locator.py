@@ -160,7 +160,7 @@ if __name__ == "__main__":
     # INITIALIZE LOSS FUNCTION, OPTIMIZER AND SCHEDULER
     ########################################
 
-    criterion = FocalDiceLoss()
+    criterion = FocalDiceLoss(focal_alpha=0.65,focal_gamma=2.0, lambda_focal=1.75, lambda_dice=1.0, apply_sigmoid=True)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=weight_decay, eps=1e-08)
     # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=weight_decay)
     # optimizer = load_optimizer(optimizer, path="") # when needed to resume training
@@ -176,7 +176,11 @@ if __name__ == "__main__":
                     "batch_size": batch_size,
                     "num_epochs": num_epochs,
                     "num_epochs_trained": num_epochs_trained,
-                    "loss_fn": "1.75*focal+dice loss"
+                    "focal_alpha": 0.65,
+                    "focal_gamma": 2.0,
+                    "lambda_focal": 1.75,
+                    "lambda_dice": 1.0,
+                    "apply_sigmoid": True
                     }
         )
 
