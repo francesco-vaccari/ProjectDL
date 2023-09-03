@@ -123,10 +123,16 @@ def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler,
 
 if __name__ == "__main__":
     ########################################
-    # LOAD CLIP MODEL
+    # INITIALIZE CLIP MODEL
     ########################################
 
     model, preprocess = clip.load("ViT-B/16") # only works with ViT-B/16
+    model.init_adapters()
+    # model.load_parameters(path="") # when needed to resume training
+    model.freeze_for_training()
+
+    model = model.to(device)
+    model.to(torch.float32)
 
 
     ########################################
@@ -150,19 +156,6 @@ if __name__ == "__main__":
     num_epochs = args["num_epochs"] # change if epochs alredy trained
     num_epochs_trained = 0 # change if epochs alredy trained
 
-
-    ########################################
-    # INITIALIZE MODEL
-    ########################################
-
-    # model.init_adapters() # adds adapters after original state dict has been loaded
-    # model.load_parameters(path="") # when needed to resume training
-    model.freeze_for_training() # freezes all clip by putting requires_grad=False and then unfreezes adapters
-
-    model = model.to(device)
-    model.to(torch.float32)
-
-
     ########################################
     # INITIALIZE LOSS FUNCTION, OPTIMIZER AND SCHEDULER
     ########################################
@@ -182,7 +175,7 @@ if __name__ == "__main__":
                     "weight_decay": weight_decay,
                     "batch_size": batch_size,
                     "num_epochs": num_epochs,
-                        "num_epochs_trained": num_epochs_trained,
+                    "num_epochs_trained": num_epochs_trained,
                     "loss_fn": "1.75*focal+dice loss"
                     }
         )
