@@ -78,7 +78,7 @@ def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler,
     # create folder for run
     run_path = 'runs/{}'.format(args["name"])
     if not os.path.exists(run_path):
-        os.mkdir(run_path)
+        os.system(f"mkdir {run_path}")
 
     best_eval_loss = float('inf')
 
@@ -160,9 +160,9 @@ if __name__ == "__main__":
     # INITIALIZE LOSS FUNCTION, OPTIMIZER AND SCHEDULER
     ########################################
 
-    criterion = FocalDiceLoss(focal_alpha=0.65,focal_gamma=2.0, lambda_focal=1.75, lambda_dice=1.0, apply_sigmoid=True)
+    apply_sigmoid = True
+    criterion = FocalDiceLoss(apply_sigmoid=apply_sigmoid)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=weight_decay, eps=1e-08)
-    # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=weight_decay)
     # optimizer = load_optimizer(optimizer, path="") # when needed to resume training
     scheduler = torch.optim.lr_scheduler.PolynomialLR(optimizer, total_iters=num_epochs)
     # scheduler = load_scheduler(scheduler, path="") # when needed to resume training
@@ -180,7 +180,7 @@ if __name__ == "__main__":
                     "focal_gamma": 2.0,
                     "lambda_focal": 1.75,
                     "lambda_dice": 1.0,
-                    "apply_sigmoid": True
+                    "sigmoid": apply_sigmoid
                     }
         )
 

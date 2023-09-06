@@ -67,6 +67,23 @@ class RefcocogDataset(Dataset):
         arr[arr <= 0.0] = 0 # make the image binary
         arr[arr > 0.0] = 1 # make the image binary
         return arr
+    
+    def __computeGroundTruthRefiner(self, item):
+        image = self.__getimage(item.image_id)
+        mask = Image.new("L", image.size)
+        draw = ImageDraw.Draw(mask)
+        draw.polygon(item.segmentation[0], fill="white", width=0)
+
+        return self.__img_preprocess_refiner(mask)
+
+    def __img_preprocess_refiner(self, image: Image, n_px: int = 224):
+        resized = T.Resize(n_px, interpolation=Image.BICUBIC)(image)
+        crop = T.CenterCrop(n_px)(resized)
+
+        arr = torch.tensor(np.asarray(crop))
+        arr[arr <= 0.0] = 0 # make the image binary
+        arr[arr > 0.0] = 1 # make the image binary
+        return arr
 
     def __get_train_annotations(self):
         return self.annotations[self.annotations.split == "train"].reset_index()
@@ -102,4 +119,4 @@ class RefcocogDataset(Dataset):
 
         sample = {'idx': idx, 'image': image, 'sentences': sentences}
 
-        return sample, {'bbox': item.bbox, 'gt': self.__computeGroundTruth(item)}
+        return sample, {'bbox': item.bbox, 'gt': self.__computeGroundTruth(item), 'gt_refiner':self.__computeGroundTruthRefiner(item)}

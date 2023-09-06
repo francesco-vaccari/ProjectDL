@@ -20,7 +20,7 @@ arg = argparse.ArgumentParser()
 arg.add_argument("--name", type=str, default='run_{}'.format(datetime.now().strftime('%Y%m%d_%H%M%S')), help="Name of the run")
 arg.add_argument("--batch_size", type=int, default=16, help="Batch size")
 arg.add_argument("--num_epochs", type=int, default=1, help="Number of epochs")
-arg.add_argument("--dataset", type=str, default="../Dataset/refcocog", help="Dataset to use")
+arg.add_argument("--dataset", type=str, default="./dataset/refcocog", help="Dataset to use")
 arg.add_argument("-l", "--logwandb", help="Log training on wandb", action="store_true")
 
 args = vars(arg.parse_args())
@@ -49,14 +49,14 @@ def train_one_epoch(epoch_index, train_loader, locator, refiner, criterion, opti
 
         images = samples['image'].to(device)
         sentences = clip.tokenize(samples['sentences']).to(device)
-        target = bbox['gt'].to(device, dtype=torch.float32) # fix to correct target for refiner output
+        target =  bbox['gt_refiner'].to(device)
 
         optimizer.zero_grad()
 
         with torch.no_grad():
             maps, fv = locator.encode(images, sentences)
         
-        out = refiner(maps, fv) # fix to input needed
+        out = refiner(maps, fv) # maps is batchx14x14, fv is list (4 elem) of batchx197x768
 
         batch_loss = criterion(out, target) # fix to input needed, but should be 224x224 map for both target and out, so focal and dice are still good
 
@@ -76,7 +76,7 @@ def train_loop(num_epochs, train_loader, eval_loader, locator, refiner, criterio
     # create folder for run
     run_path = 'runs/{}'.format(args["name"])
     if not os.path.exists(run_path):
-        os.mkdir(run_path)
+        os.system(f"mkdir {run_path}")
 
     best_eval_loss = float('inf')
 
@@ -95,7 +95,7 @@ def train_loop(num_epochs, train_loader, eval_loader, locator, refiner, criterio
             for samples, bbox in eval_loader:
                 images = samples['image'].to(device)
                 sentences = clip.tokenize(samples['sentences']).to(device)
-                target = bbox['gt'].to(device, dtype=torch.float32) # fix to correct target for refiner output
+                target =  bbox['gt_refiner'].to(device)
                 
                 maps, fv = locator.encode(images, sentences)
                 out = refiner(maps, fv) # fix to correct input
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     # INITIALIZE MODELS
     ########################################
 
-    locator, preprocess = load_locator(path="path")
+    locator, preprocess = load_locator(path="path") # change path
 
     refiner = Refiner()
     refiner = refiner.to(device)
@@ -152,9 +152,9 @@ if __name__ == "__main__":
     # INITIALIZE LOSS FUNCTION, OPTIMIZER AND SCHEDULER
     ########################################
 
-    criterion = FocalDiceLoss()
+    apply_sigmoid = True
+    criterion = FocalDiceLoss(apply_sigmoid=apply_sigmoid)
     optimizer = torch.optim.AdamW(refiner.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=weight_decay, eps=1e-08)
-    # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=weight_decay)
     # optimizer = load_optimizer(optimizer, path="") # when needed to resume training
     scheduler = torch.optim.lr_scheduler.PolynomialLR(optimizer, total_iters=num_epochs)
     # scheduler = load_scheduler(scheduler, path="") # when needed to resume training
@@ -167,7 +167,12 @@ if __name__ == "__main__":
                     "weight_decay": weight_decay,
                     "batch_size": batch_size,
                     "num_epochs": num_epochs,
-                    "loss_fn": "1.75*focal+dice loss"
+                    "loss_fn": "1.75*focal+dice loss",
+                    "focal_alpha": 0.65,
+                    "focal_gamma": 2.0,
+                    "lambda_focal": 1.75,
+                    "lambda_dice": 1.0,
+                    "sigmoid": apply_sigmoid,
                     }
         )
 
