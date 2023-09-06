@@ -20,10 +20,10 @@ class Refiner(nn.Module):
     """
     Args:
       x:  low level probability map (batch x 14 x 14)
-      fv[0]:  image tokens encoded at layer 1   (batch x 196 x 768)
-      fv[1]:  image tokens encoded at layer 2   (batch x 196 x 768)
-      fv[2]:  image tokens encoded at layer 3   (batch x 196 x 768)
-      fv[3]:  image tokens encoded at layer 4   (batch x 196 x 768)
+      fv[0]:  image tokens encoded at layer 1   (batch x 197 x 768)
+      fv[1]:  image tokens encoded at layer 2   (batch x 197 x 768)
+      fv[2]:  image tokens encoded at layer 3   (batch x 197 x 768)
+      fv[3]:  image tokens encoded at layer 4   (batch x 197 x 768)
     """
 
     bacth_size = fv[3].shape[0]
