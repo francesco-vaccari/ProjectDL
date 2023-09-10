@@ -25,6 +25,7 @@ arg.add_argument("-r", "--resume", help="Resume Training", action="store_true")
 arg.add_argument("--model", type=str, help="Model parameters to use")
 arg.add_argument("--optimizer", type=str, help="Optimizer paramteres to use")
 arg.add_argument("--scheduler", type=str, help="Scheduler paramteres to use")
+arg.add_argument("--epoch", type=int, help="Resuming starting epoch")
 
 args = vars(arg.parse_args())
 
@@ -87,7 +88,7 @@ def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler,
 
     best_eval_loss = float('inf')
 
-    loop = tqdm(range(num_epochs), desc="Training locator", leave=True)
+    loop = tqdm(range(num_epochs_trained, num_epochs), desc="Training locator", leave=True)
     for epoch in loop:
         model.train()
 
@@ -161,6 +162,9 @@ if __name__ == "__main__":
     weight_decay = 5e-3 # 5e-3
     num_epochs = args["num_epochs"] # change if epochs alredy trained
     num_epochs_trained = 0 # change if epochs alredy trained
+    
+    if resume:
+        num_epochs_trained = args["epoch"]
 
     ########################################
     # INITIALIZE LOSS FUNCTION, OPTIMIZER AND SCHEDULER
