@@ -21,10 +21,15 @@ arg.add_argument("--batch_size", type=int, default=16, help="Batch size")
 arg.add_argument("--num_epochs", type=int, default=60, help="Number of epochs")
 arg.add_argument("--dataset", type=str, default="../Dataset/refcocog", help="Dataset to use")
 arg.add_argument("-l", "--logwandb", help="Log training on wandb", action="store_true")
+arg.add_argument("-r", "--resume", help="Resume Training", action="store_true")
+arg.add_argument("--model", type=str, help="Model parameters to use")
+arg.add_argument("--optimizer", type=str, help="Optimizer paramteres to use")
+arg.add_argument("--scheduler", type=str, help="Scheduler paramteres to use")
 
 args = vars(arg.parse_args())
 
 logwandb = args["logwandb"]
+resume = args["resume"]
 
 ############################################
 # DEFINE TRAINING FUNCTIONS
@@ -128,7 +133,8 @@ if __name__ == "__main__":
 
     model, preprocess = clip.load("ViT-B/16") # only works with ViT-B/16
     model.init_adapters()
-    # model.load_parameters(path="") # when needed to resume training
+    if resume:
+        model.load_state_dict(torch.load(args["model"])) # when needed to resume training
     model.freeze_for_training()
 
     model = model.to(device)
@@ -163,9 +169,12 @@ if __name__ == "__main__":
     apply_sigmoid = True
     criterion = FocalDiceLoss(apply_sigmoid=apply_sigmoid)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=weight_decay, eps=1e-08)
-    # optimizer = load_optimizer(optimizer, path="") # when needed to resume training
+    if resume:
+        optimizer = load_optimizer(optimizer, path=args["optimizer"]) # when needed to resume training
     scheduler = torch.optim.lr_scheduler.PolynomialLR(optimizer, total_iters=num_epochs)
-    # scheduler = load_scheduler(scheduler, path="") # when needed to resume training
+
+    if resume:
+        scheduler = load_scheduler(scheduler, path=args["scheduler"]) # when needed to resume training
 
     if logwandb:
         wandb.init(project="projectdl", 
