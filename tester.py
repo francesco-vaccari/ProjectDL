@@ -4,10 +4,11 @@ from torch.utils.data import DataLoader
 import clip
 from dataset.RefcocogDataset import RefcocogDataset
 from model.refiner.refiner import Refiner
+import matplotlib.pyplot as plt
 
 
-locator_path = "./models/locator_epoch_6.pth"
-refiner_path = "./models/refiner_epoch_1.pth"
+locator_path = "../models/locator_epoch_6.pth"
+refiner_path = "../models/refiner_epoch_1.pth"
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -21,8 +22,9 @@ refiner = Refiner()
 refiner.load_state_dict(torch.load(refiner_path, map_location=device))
 refiner = refiner.to(device)
 
+batch_size = 4
 test_dataset = RefcocogDataset("./dataset/refcocog", split="test", transform=preprocess)
-test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 
 def extract_bbox(out):
@@ -66,16 +68,33 @@ def compute_accuracy(out, bbox):
 
 
 acc = []
-for sample, bbox in test_loader:
+for i, (sample, bbox) in enumerate(test_loader):
     image = sample['image'].to(device)
     sentences = clip.tokenize(sample['sentences']).to(device)
     maps, fv = locator.encode(image, sentences)
     
     out = refiner(maps, fv)
 
+    
+
     for idx in range(out.shape[0]):
         box = bbox['bbox'][0][idx].item(), bbox['bbox'][1][idx].item(), bbox['bbox'][2][idx].item(), bbox['bbox'][3][idx].item()
         accuracy = compute_accuracy(out[idx], box)
         acc.append(accuracy)
+        print(f'[{i+1:^4}/{len(test_loader)}]\t[{idx+1}/{batch_size}] : {accuracy}')
+        
+        plt.figure()
+        plt.subplot(2, 2, 1)
+        plt.imshow(maps[idx].squeeze(0).squeeze(0).detach().cpu().numpy())
+        plt.subplot(2, 2, 2)
+        plt.imshow(out[idx].squeeze(0).squeeze(0).detach().cpu().numpy())
+        plt.subplot(2, 2, 3)
+        plt.imshow(sample['image'][idx].permute(1, 2, 0).numpy())
+        plt.title(sample['sentences'][idx])
+        plt.subplot(2, 2, 4)
+        plt.imshow(bbox['gt'][idx])
+        plt.show()
+    
+    break
 
-print(f'Accuracy : {sum(acc)/len(acc)}')
+print(f'\nAccuracy : {sum(acc)/len(acc)}')

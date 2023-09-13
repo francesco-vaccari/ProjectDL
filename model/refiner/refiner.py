@@ -86,11 +86,11 @@ class Refiner(nn.Module):
     x = self.bn4(x)
     x = nn.functional.interpolate(input=x, mode='bilinear', scale_factor=2)
 
-    print(x.shape)
+    # print(x.shape)
     x = torch.flatten(x, start_dim=2)
     # x = self.W(x)
     x = self.sigmoid(x)
-    print(x.shape)
+    # print(x.shape)
     x = x.reshape(bacth_size, 1, 224, 224)
     x = x.squeeze(1)
 
