@@ -2,27 +2,27 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import clip
-from ..dataset.RefcocogDataset import RefcocogDataset
-from refiner import Refiner
+from dataset.RefcocogDataset import RefcocogDataset
+from model.refiner.refiner import Refiner
 
 
-# locator_path = "./locator.pth"
-# refiner_path = "./refiner.pth"
+locator_path = "./models/locator_epoch_6.pth"
+refiner_path = "./models/refiner_epoch_1.pth"
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 locator, preprocess = clip.load("ViT-B/16")
 locator.init_adapters()
-# locator.load_state_dict(torch.load(locator_path))
+locator.load_state_dict(torch.load(locator_path, map_location=device))
 locator = locator.to(device)
 
 refiner = Refiner()
-# refiner.load_state_dict(torch.load(refiner_path))
+refiner.load_state_dict(torch.load(refiner_path, map_location=device))
 refiner = refiner.to(device)
 
-test_dataset = RefcocogDataset("./dataser/refcocog", split="test", transform=preprocess)
-test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False)
+test_dataset = RefcocogDataset("./dataset/refcocog", split="test", transform=preprocess)
+test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
 
 
 def extract_bbox(out):

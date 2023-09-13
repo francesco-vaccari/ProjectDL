@@ -24,9 +24,9 @@ class Refiner(nn.Module):
     self.relu4 = nn.ReLU()
     self.bn4 = nn.BatchNorm2d(1)
 
-    self.W = nn.Linear(224*224, 224*224)
+    # self.W = nn.Linear(224*224, 224*224)
     self.sigmoid = nn.Sigmoid()
-    self.W.bias.data.fill_(0.)
+    # self.W.bias.data.fill_(0.)
 
   def forward(self, x, fv):
     
@@ -88,7 +88,7 @@ class Refiner(nn.Module):
 
     print(x.shape)
     x = torch.flatten(x, start_dim=2)
-    x = self.W(x)
+    # x = self.W(x)
     x = self.sigmoid(x)
     print(x.shape)
     x = x.reshape(bacth_size, 1, 224, 224)
