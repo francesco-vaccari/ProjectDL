@@ -57,6 +57,36 @@ class RefcocogDataset(Dataset):
 
         return self.__img_preprocess(mask)
     
+    def __bbox_image(self, item):
+        image = self.__getimage(item.image_id)
+        mask = Image.new("L", image.size)
+        draw = ImageDraw.Draw(mask)
+        draw.polygon(item.bbox, fill="white", width=0)
+
+        return self.extract_bbox(mask)
+
+
+    def extract_bbox(out):
+        map = out.squeeze(0).squeeze(0).detach().cpu().numpy()
+        # normalize map to [0, 1]
+        map = (map - map.min()) / (map.max() - map.min())
+        # threshold map
+        map = (map > 0.8)
+        x_min = 225
+        y_min = 225
+        x_max = 0
+        y_max = 0
+        for i in range(224):
+            for j in range(224):
+                if map[i][j] == True:
+                    if i < y_min: y_min = i
+                    if i > y_max: y_max = i
+                    if j < x_min: x_min = j
+                    if j > x_max: x_max = j
+        
+        return x_min, y_min, x_max, y_max
+        
+    
     def __img_preprocess(self, image: Image, n_px: int = 224, grid_px: int = 14):
         resized = T.Resize(n_px, interpolation=Image.BICUBIC)(image)
         crop = T.CenterCrop(n_px)(resized)
@@ -119,4 +149,4 @@ class RefcocogDataset(Dataset):
 
         sample = {'idx': idx, 'image': image, 'sentences': sentences}
 
-        return sample, {'bbox': item.bbox, 'gt': self.__computeGroundTruth(item), 'gt_refiner':self.__computeGroundTruthRefiner(item)}
+        return sample, {'bbox': self.__bbox_image(item), 'gt': self.__computeGroundTruth(item), 'gt_refiner':self.__computeGroundTruthRefiner(item)}
