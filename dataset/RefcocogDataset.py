@@ -63,10 +63,12 @@ class RefcocogDataset(Dataset):
         draw = ImageDraw.Draw(mask)
         draw.polygon(item.bbox, fill="white", width=0)
 
-        return self.extract_bbox(mask)
+        arr = torch.tensor(np.array(mask))
+
+        return self.extract_bbox(arr)
 
 
-    def extract_bbox(out):
+    def extract_bbox(self, out):
         map = out.squeeze(0).squeeze(0).detach().cpu().numpy()
         # normalize map to [0, 1]
         map = (map - map.min()) / (map.max() - map.min())
