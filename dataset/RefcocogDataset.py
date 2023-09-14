@@ -155,3 +155,4 @@ class RefcocogDataset(Dataset):
         sample = {'idx': idx, 'image': image, 'sentences': sentences}
 
         return sample, {'bbox': self.__bbox_image(item), 'gt': self.__computeGroundTruth(item), 'gt_refiner':self.__computeGroundTruthRefiner(item)}
+    
