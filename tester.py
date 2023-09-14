@@ -5,6 +5,11 @@ import clip
 from dataset.RefcocogDataset import RefcocogDataset
 from model.refiner.refiner import Refiner
 import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon
+from matplotlib.patches import Rectangle
+
+import warnings
+warnings.filterwarnings("ignore")
 
 
 locator_path = "../models/locator_epoch_6.pth"
@@ -24,7 +29,7 @@ refiner = refiner.to(device)
 
 batch_size = 4
 test_dataset = RefcocogDataset("./dataset/refcocog", split="test", transform=preprocess)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
 
 def extract_bbox(out):
@@ -58,11 +63,34 @@ def computeIntersection(fx1, fy1, fx2, fy2, sx1, sy1, sx2, sy2):
     return area
 
 def compute_accuracy(out, bbox):
-    x, y, w, h = bbox[0], bbox[1], bbox[2], bbox[3]
+    x, y, x2, y2 = bbox[0], bbox[1], bbox[2], bbox[3]
     x_min, y_min, x_max, y_max = extract_bbox(out)
-    intersection = computeIntersection(x_min, y_min, x_max, y_max, x, y, x+w, y+h)
+
+    gt_x = [x, x, x2, x2, x]
+    gt_y = [y, y2, y2, y, y]
+
+    pred_x = [x_min, x_min, x_max, x_max, x_min]
+    pred_y = [y_min, y_max, y_max, y_min, y_min]
+
+    fig, ax = plt.subplots()
+    rectangle_gt = Polygon(xy=list(zip(gt_x, gt_y)), closed=True, edgecolor='b', facecolor='none')
+    rectangle_pred = Polygon(xy=list(zip(pred_x, pred_y)), closed=True, edgecolor='r', facecolor='none')
+
+    ax.add_patch(rectangle_gt)
+    ax.add_patch(rectangle_pred)
+
+    min_x = min(min(gt_x), min(pred_x))
+    max_x = max(max(gt_x), max(pred_x))
+    min_y = min(min(gt_y), min(pred_y))
+    max_y = max(max(gt_y), max(pred_y))
+    ax.set_xlim(min_x-10, max_x+10)
+    ax.set_ylim(min_y-10, max_y+10)
+
+    plt.show()
+
+    intersection = computeIntersection(x_min, y_min, x_max, y_max, x, y, x2, y2)
     area1 = (x_max-x_min)*(y_max-y_min)
-    area2 = w*h
+    area2 = (x2-x)*(y2-y)
     union = area1 + area2 - intersection
     return intersection / union
 
@@ -79,8 +107,20 @@ for i, (sample, bbox) in enumerate(test_loader):
 
     for idx in range(out.shape[0]):
         box = bbox['bbox'][0][idx].item(), bbox['bbox'][1][idx].item(), bbox['bbox'][2][idx].item(), bbox['bbox'][3][idx].item()
+        
+        print(f'\tSent: {sample["sentences"][idx]}')
+        print(box)
+        
+        fig, ax = plt.subplots()
+        plt.imshow(sample['image'][idx].permute(1, 2, 0).numpy())
+        rectangle_gt = Rectangle(xy=(box[0], box[1]), width=box[2]-box[0], height=box[3]-box[1], edgecolor='b', facecolor='none')
+        ax.add_patch(rectangle_gt)
+        plt.show()
+        
+
         accuracy = compute_accuracy(out[idx], box)
         acc.append(accuracy)
+
         print(f'[{i+1:^4}/{len(test_loader)}]\t[{idx+1}/{batch_size}] : {accuracy}')
         
         plt.figure()
@@ -90,7 +130,6 @@ for i, (sample, bbox) in enumerate(test_loader):
         plt.imshow(out[idx].squeeze(0).squeeze(0).detach().cpu().numpy())
         plt.subplot(2, 2, 3)
         plt.imshow(sample['image'][idx].permute(1, 2, 0).numpy())
-        plt.title(sample['sentences'][idx])
         plt.subplot(2, 2, 4)
         plt.imshow(bbox['gt'][idx])
         plt.show()
