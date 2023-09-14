@@ -57,13 +57,16 @@ class RefcocogDataset(Dataset):
 
         return self.__img_preprocess(mask)
     
-    def __bbox_image(self, item):
+    def __bbox_image(self, item, n_px: int = 224):
         image = self.__getimage(item.image_id)
         mask = Image.new("L", image.size)
         draw = ImageDraw.Draw(mask)
         draw.polygon(item.bbox, fill="white", width=0)
 
-        arr = self.__img_preprocess(mask)
+        resized = T.Resize(n_px, interpolation=Image.BICUBIC)(mask)
+        crop = T.CenterCrop(n_px)(resized)
+
+        arr = torch.tensor(np.array(crop))
 
         return self.extract_bbox(arr)
 
