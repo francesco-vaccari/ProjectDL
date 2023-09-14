@@ -63,7 +63,7 @@ class RefcocogDataset(Dataset):
         draw = ImageDraw.Draw(mask)
         draw.polygon(item.bbox, fill="white", width=0)
 
-        arr = torch.tensor(np.array(mask))
+        arr = self.__img_preprocess(mask)
 
         return self.extract_bbox(arr)
 
