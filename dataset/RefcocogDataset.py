@@ -65,6 +65,9 @@ class RefcocogDataset(Dataset):
 
         resized = T.Resize(n_px, interpolation=Image.BICUBIC)(mask)
         crop = T.CenterCrop(n_px)(resized)
+        import matplotlib.pyplot as plt
+        plt.imshow(crop)
+        plt.show()
 
         arr = torch.tensor(np.array(crop))
 
@@ -145,6 +148,9 @@ class RefcocogDataset(Dataset):
         item = self.annotations.iloc[idx]
         image = self.__getimage(item.image_id)
         sentences = self.__extract_sentences(item.sentences)
+
+        print(item.bbox)
+        print(image.width, image.height)
 
         if self.transform:
             image = self.transform(image)

@@ -29,7 +29,7 @@ refiner = refiner.to(device)
 
 batch_size = 4
 test_dataset = RefcocogDataset("./dataset/refcocog", split="test", transform=preprocess)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 
 def extract_bbox(out):
@@ -51,7 +51,7 @@ def extract_bbox(out):
                 if j > x_max: x_max = j
     
     return x_min, y_min, x_max, y_max
-                
+
 
 def computeIntersection(fx1, fy1, fx2, fy2, sx1, sy1, sx2, sy2):
     dx = min(fx2, sx2) - max(fx1, sx1)
@@ -65,28 +65,6 @@ def computeIntersection(fx1, fy1, fx2, fy2, sx1, sy1, sx2, sy2):
 def compute_accuracy(out, bbox):
     x, y, x2, y2 = bbox[0], bbox[1], bbox[2], bbox[3]
     x_min, y_min, x_max, y_max = extract_bbox(out)
-
-    gt_x = [x, x, x2, x2, x]
-    gt_y = [y, y2, y2, y, y]
-
-    pred_x = [x_min, x_min, x_max, x_max, x_min]
-    pred_y = [y_min, y_max, y_max, y_min, y_min]
-
-    fig, ax = plt.subplots()
-    rectangle_gt = Polygon(xy=list(zip(gt_x, gt_y)), closed=True, edgecolor='b', facecolor='none')
-    rectangle_pred = Polygon(xy=list(zip(pred_x, pred_y)), closed=True, edgecolor='r', facecolor='none')
-
-    ax.add_patch(rectangle_gt)
-    ax.add_patch(rectangle_pred)
-
-    min_x = min(min(gt_x), min(pred_x))
-    max_x = max(max(gt_x), max(pred_x))
-    min_y = min(min(gt_y), min(pred_y))
-    max_y = max(max(gt_y), max(pred_y))
-    ax.set_xlim(min_x-10, max_x+10)
-    ax.set_ylim(min_y-10, max_y+10)
-
-    plt.show()
 
     intersection = computeIntersection(x_min, y_min, x_max, y_max, x, y, x2, y2)
     area1 = (x_max-x_min)*(y_max-y_min)
@@ -103,20 +81,11 @@ for i, (sample, bbox) in enumerate(test_loader):
     
     out = refiner(maps, fv)
 
-    
-
     for idx in range(out.shape[0]):
         box = bbox['bbox'][0][idx].item(), bbox['bbox'][1][idx].item(), bbox['bbox'][2][idx].item(), bbox['bbox'][3][idx].item()
         
         print(f'\tSent: {sample["sentences"][idx]}')
         print(box)
-        
-        fig, ax = plt.subplots()
-        plt.imshow(sample['image'][idx].permute(1, 2, 0).numpy())
-        rectangle_gt = Rectangle(xy=(box[0], box[1]), width=box[2]-box[0], height=box[3]-box[1], edgecolor='b', facecolor='none')
-        ax.add_patch(rectangle_gt)
-        plt.show()
-        
 
         accuracy = compute_accuracy(out[idx], box)
         acc.append(accuracy)
@@ -130,6 +99,8 @@ for i, (sample, bbox) in enumerate(test_loader):
         plt.imshow(out[idx].squeeze(0).squeeze(0).detach().cpu().numpy())
         plt.subplot(2, 2, 3)
         plt.imshow(sample['image'][idx].permute(1, 2, 0).numpy())
+        rect = Rectangle((box[0], box[1]), box[2]-box[0], box[3]-box[1], linewidth=1, edgecolor='b', facecolor='none')
+        plt.gca().add_patch(rect)
         plt.subplot(2, 2, 4)
         plt.imshow(bbox['gt'][idx])
         plt.show()
