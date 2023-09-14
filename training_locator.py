@@ -122,9 +122,9 @@ def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler,
         
         scheduler.step()
 
-        torch.save(model.state_dict(), run_path + "/epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
-        torch.save(optimizer.state_dict(), run_path + "/optimizer_epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
-        torch.save(scheduler.state_dict(), run_path + "/scheduler_epoch_" + str(epoch+num_epochs_trained+1) + ".pth")
+        torch.save(model.state_dict(), run_path + "/epoch_" + str(epoch+1) + ".pth")
+        torch.save(optimizer.state_dict(), run_path + "/optimizer_epoch_" + str(epoch+1) + ".pth")
+        torch.save(scheduler.state_dict(), run_path + "/scheduler_epoch_" + str(epoch+1) + ".pth")
 
 
 if __name__ == "__main__":
