@@ -85,7 +85,6 @@ for i, (sample, bbox) in enumerate(test_loader):
         box = bbox['bbox'][0][idx].item(), bbox['bbox'][1][idx].item(), bbox['bbox'][2][idx].item(), bbox['bbox'][3][idx].item()
         
         print(f'\tSent: {sample["sentences"][idx]}')
-        print(box)
 
         accuracy = compute_accuracy(out[idx], box)
         acc.append(accuracy)
@@ -97,6 +96,9 @@ for i, (sample, bbox) in enumerate(test_loader):
         plt.imshow(maps[idx].squeeze(0).squeeze(0).detach().cpu().numpy())
         plt.subplot(2, 2, 2)
         plt.imshow(out[idx].squeeze(0).squeeze(0).detach().cpu().numpy())
+        x_min, y_min, x_max, y_max = extract_bbox(out[idx])
+        rect = Rectangle((x_min, y_min), x_max-x_min, y_max-y_min, linewidth=1, edgecolor='r', facecolor='none')
+        plt.gca().add_patch(rect)
         plt.subplot(2, 2, 3)
         plt.imshow(sample['image'][idx].permute(1, 2, 0).numpy())
         rect = Rectangle((box[0], box[1]), box[2]-box[0], box[3]-box[1], linewidth=1, edgecolor='b', facecolor='none')
