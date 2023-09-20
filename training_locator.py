@@ -1,4 +1,4 @@
-import clip
+import model.locator.clip as clip
 import torch
 import argparse
 

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-import clip
+import model.locator.clip as clip
 from dataset.RefcocogDataset import RefcocogDataset
 from model.refiner.refiner import Refiner
 import matplotlib.pyplot as plt
@@ -12,8 +12,8 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-locator_path = "../models/locator_epoch_6.pth"
-refiner_path = "../models/refiner_epoch_1.pth"
+locator_path = "./model/epoch6/epoch_40.pth"
+refiner_path = "./model/epoch6/refiner_epoch_1.pth"
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -22,13 +22,15 @@ locator, preprocess = clip.load("ViT-B/16")
 locator.init_adapters()
 locator.load_state_dict(torch.load(locator_path, map_location=device))
 locator = locator.to(device)
+locator.to(torch.float32)
 
 refiner = Refiner()
 refiner.load_state_dict(torch.load(refiner_path, map_location=device))
 refiner = refiner.to(device)
+refiner.to(torch.float32)
 
-batch_size = 4
-test_dataset = RefcocogDataset("./dataset/refcocog", split="test", transform=preprocess)
+batch_size = 16
+test_dataset = RefcocogDataset("./refcocog", split="test", transform=preprocess)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 
@@ -107,6 +109,4 @@ for i, (sample, bbox) in enumerate(test_loader):
         plt.imshow(bbox['gt'][idx])
         plt.show()
     
-    break
-
 print(f'\nAccuracy : {sum(acc)/len(acc)}')
