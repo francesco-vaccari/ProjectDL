@@ -29,7 +29,7 @@ refiner.load_state_dict(torch.load(refiner_path, map_location=device))
 refiner = refiner.to(device)
 refiner.to(torch.float32)
 
-batch_size = 16
+batch_size = 8
 test_dataset = RefcocogDataset("./refcocog", split="test", transform=preprocess)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
@@ -94,19 +94,21 @@ for i, (sample, bbox) in enumerate(test_loader):
         print(f'[{i+1:^4}/{len(test_loader)}]\t[{idx+1}/{batch_size}] : {accuracy}')
         
         plt.figure()
-        plt.subplot(2, 2, 1)
+        plt.subplot(2, 3, 1)
         plt.imshow(maps[idx].squeeze(0).squeeze(0).detach().cpu().numpy())
-        plt.subplot(2, 2, 2)
+        plt.subplot(2, 3, 2)
         plt.imshow(out[idx].squeeze(0).squeeze(0).detach().cpu().numpy())
         x_min, y_min, x_max, y_max = extract_bbox(out[idx])
         rect = Rectangle((x_min, y_min), x_max-x_min, y_max-y_min, linewidth=1, edgecolor='r', facecolor='none')
         plt.gca().add_patch(rect)
-        plt.subplot(2, 2, 3)
+        plt.subplot(2, 3, 3)
         plt.imshow(sample['image'][idx].permute(1, 2, 0).numpy())
         rect = Rectangle((box[0], box[1]), box[2]-box[0], box[3]-box[1], linewidth=1, edgecolor='b', facecolor='none')
         plt.gca().add_patch(rect)
-        plt.subplot(2, 2, 4)
+        plt.subplot(2, 3, 4)
         plt.imshow(bbox['gt'][idx])
+        plt.subplot(2, 3, 5)
+        plt.imshow(bbox['gt_refiner'][idx])
         plt.show()
     
 print(f'\nAccuracy : {sum(acc)/len(acc)}')

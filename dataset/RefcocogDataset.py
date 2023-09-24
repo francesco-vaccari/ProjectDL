@@ -55,6 +55,8 @@ class RefcocogDataset(Dataset):
         draw = ImageDraw.Draw(mask)
         draw.polygon(item.segmentation[0], fill="white", width=0)
 
+        mask = mask.resize((640, 640))
+
         return self.__img_preprocess(mask)
     
     def __bbox_image(self, item, n_px: int = 224):
@@ -64,6 +66,8 @@ class RefcocogDataset(Dataset):
         
         rect_coords = [item.bbox[0], item.bbox[1], item.bbox[0] + item.bbox[2], item.bbox[1] + item.bbox[3]]
         draw.rectangle(rect_coords, fill="white", width=0)
+
+        mask = mask.resize((640, 640))
 
         resized = T.Resize(n_px, interpolation=Image.BICUBIC)(mask)
         
@@ -112,6 +116,8 @@ class RefcocogDataset(Dataset):
         draw = ImageDraw.Draw(mask)
         draw.polygon(item.segmentation[0], fill="white", width=0)
 
+        mask = mask.resize((640, 640))
+
         return self.__img_preprocess_refiner(mask)
 
     def __img_preprocess_refiner(self, image: Image, n_px: int = 224):
@@ -133,7 +139,7 @@ class RefcocogDataset(Dataset):
         return Image.open(self.IMAGES_PATH + "COCO_train2014_" + str(id).zfill(12) + ".jpg")
 
     def __extract_sentences(self, sentence):
-        return f"a photo of a {sentence['sent']}"
+        return f"{sentence['sent']}"
 
     def __tokenize_sents(self, sentences):
         return [self.tokenization(s) for s in sentences]
@@ -146,7 +152,7 @@ class RefcocogDataset(Dataset):
         # Return single sentence, probably preprocess needed so we do not waste data
         
         item = self.annotations.iloc[idx]
-        image = self.__getimage(item.image_id)
+        image = self.__getimage(item.image_id).resize((640, 640))
         sentences = self.__extract_sentences(item.sentences)
 
         if self.transform:

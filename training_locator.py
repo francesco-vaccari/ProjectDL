@@ -19,7 +19,7 @@ arg = argparse.ArgumentParser()
 arg.add_argument("--name", type=str, default='run_{}'.format(datetime.now().strftime('%Y%m%d_%H%M%S')), help="Name of the run")
 arg.add_argument("--batch_size", type=int, default=16, help="Batch size")
 arg.add_argument("--num_epochs", type=int, default=60, help="Number of epochs")
-arg.add_argument("--dataset", type=str, default="../Dataset/refcocog", help="Dataset to use")
+arg.add_argument("--dataset", type=str, default="./refcocog", help="Dataset to use")
 arg.add_argument("-l", "--logwandb", help="Log training on wandb", action="store_true")
 arg.add_argument("-r", "--resume", help="Resume Training", action="store_true")
 arg.add_argument("--model", type=str, help="Model parameters to use")
@@ -68,7 +68,7 @@ def train_one_epoch(epoch_index, train_loader, model, criterion, optimizer, loop
         optimizer.step()
 
         # PARAMETER DEBUG
-        # for param in model.backbone_adapters_MLP_vis[0].up_proj.parameters():
+        # for param in model.visual.proj.parameters():
         #     print(param)
 
         epoch_losses.append(batch_loss.item())
@@ -158,7 +158,7 @@ if __name__ == "__main__":
     # INITIALIZE TRAINING PARAMETERS
     ########################################
 
-    learning_rate = 5e-5 # 5e-5
+    learning_rate = 5e-5/ (32/args["batch_size"]) # 5e-5/2 for 16 batch size
     weight_decay = 5e-3 # 5e-3
     num_epochs = args["num_epochs"] # change if epochs alredy trained
     num_epochs_trained = 0 # change if epochs alredy trained
