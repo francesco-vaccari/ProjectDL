@@ -122,9 +122,9 @@ def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler,
         
         scheduler.step()
 
-        torch.save(model.state_dict(), run_path + "/epoch_" + str(epoch+1) + ".pth")
-        torch.save(optimizer.state_dict(), run_path + "/optimizer_epoch_" + str(epoch+1) + ".pth")
-        torch.save(scheduler.state_dict(), run_path + "/scheduler_epoch_" + str(epoch+1) + ".pth")
+        torch.save(model.state_dict(), run_path + "/latest.pth")
+        torch.save(optimizer.state_dict(), run_path + "/optimizer_latest.pth")
+        torch.save(scheduler.state_dict(), run_path + "/scheduler_latest.pth")
 
 
 if __name__ == "__main__":
@@ -158,7 +158,7 @@ if __name__ == "__main__":
     # INITIALIZE TRAINING PARAMETERS
     ########################################
 
-    learning_rate = 5e-5/ (32/args["batch_size"]) # 5e-5/2 for 16 batch size
+    learning_rate = 5e-5/ (args["batch_size"]) # 5e-5/2 for 16 batch size
     weight_decay = 5e-3 # 5e-3
     num_epochs = args["num_epochs"] # change if epochs alredy trained
     num_epochs_trained = 0 # change if epochs alredy trained
