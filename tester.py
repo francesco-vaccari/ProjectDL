@@ -12,7 +12,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-locator_path = "./model/epoch6/epoch_40.pth"
+locator_path = "./runs/ScaledImages/latest.pth"
 refiner_path = "./model/epoch6/refiner_epoch_1.pth"
 
 
@@ -29,7 +29,7 @@ refiner.load_state_dict(torch.load(refiner_path, map_location=device))
 refiner = refiner.to(device)
 refiner.to(torch.float32)
 
-batch_size = 8
+batch_size = 2
 test_dataset = RefcocogDataset("./refcocog", split="test", transform=preprocess)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
