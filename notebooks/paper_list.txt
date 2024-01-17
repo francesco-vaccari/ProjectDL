@@ -1,6 +1,6 @@
 Robe da fare:
 - runnare la baseline con vit b 16 evaluation test set
-- runnnare baseline 2 (yolo + sam) con vit b16 evaluation on test set
+- runnnare baseline 2 (sam) con vit b16 evaluation on test set
 - runnare risclip sempre evaluation test set
 - rifare training refiner
 - verificare che dataset funzioni con baseline
@@ -15,7 +15,7 @@ Sezioni:
 - introduzione generale sulle soluzioni che abbiamo trovato (baseline + sam + finale)
 - dataset (Dataset.ipynb) + evaluation
 - baseline (baseline_dl.ipynb) + evaluation
-- yolo + sam (last_version.ipynb)
+- sam (last_version.ipynb)
 - risclip:
     - modello per locator (locator/adapters.py | /model.py | /clip.py | /simple_tokenizer.py)
     - training loss (FocalDiceLoss.py)
