@@ -12,7 +12,7 @@ class BackboneAdapter(nn.Module):
         # initialize down proj with Kaiming Normal, up proj with zeros
         nn.init.kaiming_normal_(self.down_proj.weight, mode='fan_in', nonlinearity='relu')
         nn.init.zeros_(self.up_proj.weight)
-        self.up_proj.bias.data.fill_(0.0) # not specified in paper, maybe remove
+        self.up_proj.bias.data.fill_(0.0)
 
     def forward(self, x):
         x = self.down_proj(x)
@@ -41,10 +41,10 @@ class PreFusionAdapter(nn.Module):
         nn.init.zeros_(self.W_t2s.weight)
         nn.init.zeros_(self.W_s2v.weight)
         nn.init.zeros_(self.W_s2t.weight)
-        self.W_v2s.bias.data.fill_(0.0) # not specified in paper, maybe remove
-        self.W_t2s.bias.data.fill_(0.0) # not specified in paper, maybe remove
-        self.W_s2v.bias.data.fill_(0.0) # not specified in paper, maybe remove
-        self.W_s2t.bias.data.fill_(0.0) # not specified in paper, maybe remove
+        self.W_v2s.bias.data.fill_(0.0)
+        self.W_t2s.bias.data.fill_(0.0)
+        self.W_s2v.bias.data.fill_(0.0)
+        self.W_s2t.bias.data.fill_(0.0)
 
     def forward(self, image, text):
         image = self.ln_image(image)
@@ -99,10 +99,10 @@ class PostFusionAdapter(nn.Module):
         nn.init.zeros_(self.MHSA_image.in_proj_weight[-512:])
         nn.init.zeros_(self.MHSA_text.in_proj_weight[-512:])
 
-        self.MLP_image[0].bias.data.fill_(0.0) # not specified in paper, maybe remove
-        self.MLP_image[2].bias.data.fill_(0.0) # not specified in paper, maybe remove
-        self.MLP_text[0].bias.data.fill_(0.0) # not specified in paper, maybe remove
-        self.MLP_text[2].bias.data.fill_(0.0) # not specified in paper, maybe remove
+        self.MLP_image[0].bias.data.fill_(0.0)
+        self.MLP_image[2].bias.data.fill_(0.0)
+        self.MLP_text[0].bias.data.fill_(0.0)
+        self.MLP_text[2].bias.data.fill_(0.0)
         nn.init.zeros_(self.CA_image.in_proj_bias[-512:]) # last 512 are biases for value projection
         nn.init.zeros_(self.CA_text.in_proj_bias[-512:])
         nn.init.zeros_(self.MHSA_image.in_proj_bias[-512:])
