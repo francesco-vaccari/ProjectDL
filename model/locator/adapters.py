@@ -89,7 +89,7 @@ class PostFusionAdapter(nn.Module):
             nn.Linear(MLP_hidden_dim, shared_dim)
         )
 
-        # initialize MLPs with zeros, also value projections in CA and MHA with zeros
+        # initialize MLPs with zeros, also value projections in CA and MHSA with zeros
         nn.init.zeros_(self.MLP_image[0].weight)
         nn.init.zeros_(self.MLP_image[2].weight)
         nn.init.zeros_(self.MLP_text[0].weight)
