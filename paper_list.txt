@@ -31,28 +31,31 @@ Sezioni:
 
 
 
-TO KEEP TRACK OF FILES TO FIX/ADD/REMOVE
+TO KEEP TRACK OF FILES TO FIX/ADD/REMOVE/COMMENT
 
-[ ] model/locator/adapters.py
-[ ] model/locator/clip.py
-[ ] model/locator/model.py
-[ ] model/locator/simple_tokenizer.py
-[ ] dataset/RefcocogDataset copy.py
-[ ] dataset/RefcocogDataset.py
-[ ] dataset/RefcocogDataset.py
-[ ] refiner/refiner.py
-[ ] notebooks/Baseline_DL.ipynb
-[ ] notebooks/Baseline.ipynb
-[ ] notebooks/CnnClip.ipynb
-[ ] notebooks/Dataset.ipynb
-[ ] notebooks/DataVisualization.ipynb
-[ ] notebooks/Last_Version.ipynb
-[ ] notebooks/training_locator_(colab_version).ipynb
-[ ] notebooks/Transformer+MLP.ipynb
-[ ] FocalDiceLoss.py
-[ ] tester.py
-[ ] training_locator.py
-[ ] training_refiner.py
+COMM    FIXED   ADDED
+ENTED   FOR     IN
+        NOTEB   NOTEB
+[ ]      [ ]     [ ]    model/locator/adapters.py
+[ ]      [ ]     [ ]    model/locator/clip.py
+[ ]      [ ]     [ ]    model/locator/model.py
+[ ]      [ ]     [ ]    model/locator/simple_tokenizer.py
+[ ]      [ ]     [ ]    dataset/RefcocogDataset copy.py
+[ ]      [ ]     [ ]    dataset/RefcocogDataset.py
+[ ]      [ ]     [ ]    dataset/RefcocogDataset.py
+[ ]      [ ]     [ ]    refiner/refiner.py
+[ ]      [ ]     [ ]    notebooks/Baseline_DL.ipynb
+[ ]      [ ]     [ ]    notebooks/Baseline.ipynb
+[ ]      [ ]     [ ]    notebooks/CnnClip.ipynb
+[ ]      [ ]     [ ]    notebooks/Dataset.ipynb
+[ ]      [ ]     [ ]    notebooks/DataVisualization.ipynb
+[ ]      [ ]     [ ]    notebooks/Last_Version.ipynb
+[ ]      [ ]     [ ]    notebooks/training_locator_(colab_version).ipynb
+[ ]      [ ]     [ ]    notebooks/Transformer+MLP.ipynb
+[ ]      [ ]     [ ]    FocalDiceLoss.py
+[ ]      [ ]     [ ]    tester.py
+[ ]      [ ]     [ ]    training_locator.py
+[ ]      [ ]     [ ]    training_refiner.py
 
 We need to comment the code we did and specify maybe in the appendix what exactly in the files we did and commented.
 We need to remove all the files that we did not use.
