@@ -33,6 +33,11 @@ Sezioni:
 
 TO KEEP TRACK OF FILES TO FIX/ADD/REMOVE/COMMENT
 
+We need to comment the code we did and specify maybe in the appendix what exactly in the files we did and commented.
+We need to remove all the files that we did not use.
+Also need to fix all the files and order them so that when run one after the other in the report they work, in theory
+also the code for training and evaluation should be able to run but we can disable it and just show a couple of results.
+
 COMM    FIXED   ADDED
 ENTED   FOR     IN
         NOTEB   NOTEB
@@ -56,8 +61,3 @@ ENTED   FOR     IN
 [ ]      [ ]     [ ]    tester.py
 [ ]      [ ]     [ ]    training_locator.py
 [ ]      [ ]     [ ]    training_refiner.py
-
-We need to comment the code we did and specify maybe in the appendix what exactly in the files we did and commented.
-We need to remove all the files that we did not use.
-Also need to fix all the files and order them so that when run one after the other in the report they work, in theory
-also the code for training and evaluation ahouls be able to run but we can disable it and just show a couple of results.
