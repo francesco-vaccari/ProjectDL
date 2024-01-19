@@ -21,7 +21,6 @@ class BackboneAdapter(nn.Module):
         return x
 
 
-
 class PreFusionAdapter(nn.Module):
     def __init__(self, image_input_dim, text_input_dim, shared_dim, n_head):
         super().__init__()
@@ -47,6 +46,7 @@ class PreFusionAdapter(nn.Module):
         self.W_s2t.bias.data.fill_(0.0)
 
     def forward(self, image, text):
+        # LN -> down proj -> LN -> CA (MHA) -> up proj
         image = self.ln_image(image)
         text = self.ln_text(text)
         image = self.W_v2s(image)
@@ -61,13 +61,11 @@ class PreFusionAdapter(nn.Module):
         return image, text
 
 
-
 class PostFusionAdapter(nn.Module):
     def __init__(self, shared_dim, CA_n_head, MHSA_n_head, MLP_hidden_dim):
         super().__init__()
         # cross attention without the projections at the start
         # then MHSA and MLP for each modality
-
         self.ln_image = nn.LayerNorm(shared_dim)
         self.ln_text = nn.LayerNorm(shared_dim)
         self.CA_image = nn.MultiheadAttention(embed_dim=shared_dim, num_heads=CA_n_head)
@@ -109,6 +107,7 @@ class PostFusionAdapter(nn.Module):
         nn.init.zeros_(self.MHSA_text.in_proj_bias[-512:])
     
     def forward(self, image, text):
+        # LN -> CA (MHA) -> LN -> MHSA -> LN -> MLP
         image = self.ln_image(image)
         text = self.ln_text(text)
         image, _ = self.CA_image(query=image, key=text, value=text, need_weights=False)

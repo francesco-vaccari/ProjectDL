@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
+# source: https://gist.github.com/weiliu620/52d140b22685cf9552da4899e2160183
 def dice_loss(inputs, targets, smooth=1.):
     iflat = inputs.contiguous().view(-1)
     tflat = targets.contiguous().view(-1)
@@ -13,6 +15,7 @@ def dice_loss(inputs, targets, smooth=1.):
     return 1 - ((2. * intersection + smooth) / (A_sum + B_sum + smooth))
 
 
+# source: https://pytorch.org/vision/main/_modules/torchvision/ops/focal_loss.html
 def focal_loss(inputs, targets, alpha, gamma, reduction="none"):
     ce_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
     p_t = inputs * targets + (1 - inputs) * (1 - targets)
@@ -30,6 +33,7 @@ def focal_loss(inputs, targets, alpha, gamma, reduction="none"):
     return loss
 
 
+# the final loss function is a combination of focal and dice loss, both for locator and refiner trainings
 class FocalDiceLoss(nn.Module):
     def __init__(self, focal_alpha=0.65, focal_gamma=2.0, lambda_focal=1.75, lambda_dice=1.0, apply_sigmoid=False):
         super(FocalDiceLoss, self).__init__()
@@ -47,6 +51,6 @@ class FocalDiceLoss(nn.Module):
         
         f_loss = focal_loss(inputs, targets, alpha=self.alpha, gamma=self.gamma, reduction="mean")
         d_loss = dice_loss(inputs, targets)
-        loss = self.lambda_focal * f_loss + self.lambda_dice * d_loss
+        loss = self.lambda_focal * f_loss + self.lambda_dice * d_loss # values used --> (1.75 * focal) + (1 * dice)
 
         return loss

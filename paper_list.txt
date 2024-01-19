@@ -41,7 +41,7 @@ also the code for training and evaluation should be able to run but we can disab
 COMM    FIXED   ADDED
 ENTED   FOR     IN
         NOTEB   NOTEB
-[ ]      [ ]     [ ]    model/locator/adapters.py
+[X]      [ ]     [ ]    model/locator/adapters.py
 [ ]      [ ]     [ ]    model/locator/clip.py
 [ ]      [ ]     [ ]    model/locator/model.py
 [ ]      [ ]     [ ]    model/locator/simple_tokenizer.py
@@ -57,7 +57,7 @@ ENTED   FOR     IN
 [ ]      [ ]     [ ]    notebooks/Last_Version.ipynb
 [ ]      [ ]     [ ]    notebooks/training_locator_(colab_version).ipynb
 [ ]      [ ]     [ ]    notebooks/Transformer+MLP.ipynb
-[ ]      [ ]     [ ]    FocalDiceLoss.py
-[ ]      [ ]     [ ]    tester.py
-[ ]      [ ]     [ ]    training_locator.py
+[X]      [ ]     [ ]    FocalDiceLoss.py
+[X]      [ ]     [ ]    tester.py
+[X]      [ ]     [ ]    training_locator.py
 [ ]      [ ]     [ ]    training_refiner.py

@@ -11,12 +11,14 @@ from matplotlib.patches import Rectangle
 import warnings
 warnings.filterwarnings("ignore")
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+##########################
+###### LOADL MODELS ######
+##########################
 
 locator_path = "./runs/ScaledImages/latest.pth"
 refiner_path = "./model/epoch6/refiner_epoch_1.pth"
-
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 locator, preprocess = clip.load("ViT-B/16")
 locator.init_adapters()
@@ -29,11 +31,8 @@ refiner.load_state_dict(torch.load(refiner_path, map_location=device))
 refiner = refiner.to(device)
 refiner.to(torch.float32)
 
-batch_size = 2
-test_dataset = RefcocogDataset("./refcocog", split="test", transform=preprocess)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-
+# extract the bounding box from the segmentation map from the refiner
 def extract_bbox(out):
     map = out.squeeze(0).squeeze(0).detach().cpu().numpy()
     # normalize map to [0, 1]
@@ -55,6 +54,7 @@ def extract_bbox(out):
     return x_min, y_min, x_max, y_max
 
 
+# used to compute accuracy given the ground truth box and the predicted box
 def computeIntersection(fx1, fy1, fx2, fy2, sx1, sy1, sx2, sy2):
     dx = min(fx2, sx2) - max(fx1, sx1)
     dy = min(fy2, sy2) - max(fy1, sy1)
@@ -64,6 +64,8 @@ def computeIntersection(fx1, fy1, fx2, fy2, sx1, sy1, sx2, sy2):
         area = 0
     return area
 
+
+# compute IoU accuracy metric
 def compute_accuracy(out, bbox):
     x, y, x2, y2 = bbox[0], bbox[1], bbox[2], bbox[3]
     x_min, y_min, x_max, y_max = extract_bbox(out)
@@ -75,15 +77,29 @@ def compute_accuracy(out, bbox):
     return intersection / union
 
 
+##########################
+###### EVALUATION ########
+##########################
+
+# evaluate on the test split of dataset
+batch_size = 2
+test_dataset = RefcocogDataset("./refcocog", split="test", transform=preprocess)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
 acc = []
 for i, (sample, bbox) in enumerate(test_loader):
     image = sample['image'].to(device)
     sentences = clip.tokenize(sample['sentences']).to(device)
+    
+    # locator returns the patch-level 16x16 probability map and 
+    # features from the first 4 layers of CLIP visual encoder
     maps, fv = locator.encode(image, sentences)
     
+    # refiner returns the pixel-level segmentation map
     out = refiner(maps, fv)
 
-    for idx in range(out.shape[0]):
+    for idx in range(out.shape[0]): # for each image in the batch...
+        # ground truth bounding box
         box = bbox['bbox'][0][idx].item(), bbox['bbox'][1][idx].item(), bbox['bbox'][2][idx].item(), bbox['bbox'][3][idx].item()
         
         print(f'\tSent: {sample["sentences"][idx]}')
@@ -93,6 +109,7 @@ for i, (sample, bbox) in enumerate(test_loader):
 
         print(f'[{i+1:^4}/{len(test_loader)}]\t[{idx+1}/{batch_size}] : {accuracy}')
         
+        # show the results with image, sentence and ground truths
         plt.figure()
         plt.subplot(2, 3, 1)
         plt.imshow(maps[idx].squeeze(0).squeeze(0).detach().cpu().numpy())

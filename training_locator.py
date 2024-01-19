@@ -49,27 +49,23 @@ def load_optimizer(optimizer, path):
 
 
 def train_one_epoch(epoch_index, train_loader, model, criterion, optimizer, loop):
-    epoch_losses = []
+    epoch_losses = [] # list of losses containing the losses for each batch
     for i, (samples, bbox) in enumerate(train_loader):
         loop.set_postfix_str(f'Batch {i+1}/{len(train_loader)}')
 
 
         images = samples['image'].to(device)
         sentences = clip.tokenize(samples['sentences']).to(device)
-        target = bbox['gt'].to(device, dtype=torch.float32)
+        target = bbox['gt'].to(device, dtype=torch.float32) # ground truth segmentation map in 16x16 resolution
 
         optimizer.zero_grad()
 
         maps, fv = model.encode(images, sentences)
 
-        batch_loss = criterion(maps, target)
+        batch_loss = criterion(maps, target) # returns total loss for current batch
 
         batch_loss.backward()
         optimizer.step()
-
-        # PARAMETER DEBUG
-        # for param in model.visual.proj.parameters():
-        #     print(param)
 
         epoch_losses.append(batch_loss.item())
 
@@ -79,14 +75,14 @@ def train_one_epoch(epoch_index, train_loader, model, criterion, optimizer, loop
     return torch.mean(torch.tensor(epoch_losses)).item()
 
 def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler, eval_loader, num_epochs_trained=0):
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S') # used to name the model pth
 
     # create folder for run
     run_path = 'runs/{}'.format(args["name"])
     if not os.path.exists(run_path):
         os.system(f"mkdir {run_path}")
 
-    best_eval_loss = float('inf')
+    best_eval_loss = float('inf') # keep track of best eval loss to save best model
 
     loop = tqdm(range(num_epochs_trained, num_epochs), desc="Training locator", leave=True)
     for epoch in loop:
@@ -97,13 +93,13 @@ def train_loop(num_epochs, train_loader, model, criterion, optimizer, scheduler,
 
         model.eval()
 
-        # EVALUATE MODEL
+        # EVALUATE MODEL AFTER EACH EPOCH
         eval_losses = []
         with torch.no_grad():
             for samples, bbox in eval_loader:
                 images = samples['image'].to(device)
                 sentences = clip.tokenize(samples['sentences']).to(device)
-                maps, fv = model.encode(images, sentences)
+                maps, _ = model.encode(images, sentences)
 
                 batch_loss = criterion(maps, bbox['gt'].to(device, dtype=torch.float32))
 
@@ -133,10 +129,10 @@ if __name__ == "__main__":
     ########################################
 
     model, preprocess = clip.load("ViT-B/16") # only works with ViT-B/16
-    model.init_adapters()
+    model.init_adapters() # add adapters to CLIP after loading its weights from pretrained model
     if resume:
         model.load_state_dict(torch.load(args["model"])) # when needed to resume training
-    model.freeze_for_training()
+    model.freeze_for_training() # freeze CLIP backbone except the adapters
 
     model = model.to(device)
     model.to(torch.float32)
@@ -160,8 +156,8 @@ if __name__ == "__main__":
 
     learning_rate = 5e-5/ (32/args["batch_size"]) # 5e-5/2 for 16 batch size
     weight_decay = 5e-3 # 5e-3
-    num_epochs = args["num_epochs"] # change if epochs alredy trained
-    num_epochs_trained = 0 # change if epochs alredy trained
+    num_epochs = args["num_epochs"] # to change if epochs alredy trained
+    num_epochs_trained = 0 # to change if epochs alredy trained
     
     if resume:
         num_epochs_trained = args["epoch"]
@@ -180,6 +176,7 @@ if __name__ == "__main__":
     if resume:
         scheduler = load_scheduler(scheduler, path=args["scheduler"]) # when needed to resume training
 
+    # specify parameters to save for logging on wandb
     if logwandb:
         wandb.init(project="projectdl", 
                 name=args["name"], 
