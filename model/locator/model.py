@@ -169,6 +169,8 @@ class QuickGELU(nn.Module):
         return x * torch.sigmoid(1.702 * x)
 
 
+# class that defines each single block of the transformer
+# we added the adapters
 class ResidualAttentionBlock(nn.Module):
     def __init__(self, d_model: int, n_head: int, attn_mask: torch.Tensor = None, n_layer: int = 0, layers: int = 0, type_input: str = None):
         super().__init__()
@@ -191,7 +193,8 @@ class ResidualAttentionBlock(nn.Module):
         return self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask)[0]
 
     def forward(self, x: torch.Tensor, back_adap_MHSA, back_adap_MLP):
-        # print(f'layer: {self.n_layer} type input: {self.type_input} input shape: {x.shape}')
+        # in the forward pass we provide the adapters to use in the current layer
+        # an adapter is applied after the MHSA and one after the MLP
         x = x + self.attention(self.ln_1(x))
         x = x + back_adap_MHSA(x)
         x = x + self.mlp(self.ln_2(x))
@@ -199,6 +202,8 @@ class ResidualAttentionBlock(nn.Module):
         return x
 
 
+# transformer module
+# we modified the ResidualAttentionBlock to add the adapters
 class Transformer(nn.Module):
     def __init__(self, width: int, layers: int, heads: int, attn_mask: torch.Tensor = None, type_input: str = None):
         super().__init__()
@@ -212,6 +217,8 @@ class Transformer(nn.Module):
         return self.resblocks(x)
 
 
+# visual encoder of CLIP
+# we modified the self.transformer to add the adapters to the layers
 class VisionTransformer(nn.Module):
     def __init__(self, input_resolution: int, patch_size: int, width: int, layers: int, heads: int, output_dim: int):
         super().__init__()
@@ -266,14 +273,15 @@ class CLIP(nn.Module):
                  ):
         super().__init__()
 
+        # various model dimensions
         self.vision_layers = vision_layers
         self.transformer_layers = transformer_layers
-        
         self.vision_width = vision_width
         self.transformer_width = transformer_width
-
         self.context_length = context_length
 
+        # output of first 4 layers of visual encoder
+        # used later as input for the refiner
         self.fv1 = None
         self.fv2 = None
         self.fv3 = None
@@ -289,6 +297,7 @@ class CLIP(nn.Module):
                 width=vision_width
             )
         else:
+            # image encoder in the ViT version
             vision_heads = vision_width // 64
             self.visual = VisionTransformer(
                 input_resolution=image_resolution,
@@ -299,7 +308,8 @@ class CLIP(nn.Module):
                 output_dim=embed_dim
             )
 
-        self.transformer = Transformer( # transformer for text
+        # text encoder
+        self.transformer = Transformer(
             width=transformer_width,
             layers=transformer_layers,
             heads=transformer_heads,
@@ -359,17 +369,22 @@ class CLIP(nn.Module):
         return self.visual.conv1.weight.dtype
     
     def init_adapters(self):
+        # initialize the adapters after CLIP has loaded the weights
         vis_hidden_dim = int(self.vision_width / 2) # hidden dimension chosen as half of input embedding
         txt_hidden_dim = int(self.transformer_width / 2) # hidden dimension chosen as half of input embedding
+        
+        # 24 backbone apapters for vision encoder and 24 for text, 2 for each layer
         self.backbone_adapters_MHSA_vis = nn.Sequential(*[BackboneAdapter(self.vision_width, vis_hidden_dim) for _ in range(self.vision_layers)]).to(self.dtype)
         self.backbone_adapters_MLP_vis = nn.Sequential(*[BackboneAdapter(self.vision_width, vis_hidden_dim) for _ in range(self.vision_layers)]).to(self.dtype)
         self.backbone_adapters_MHSA_txt = nn.Sequential(*[BackboneAdapter(self.transformer_width, txt_hidden_dim) for _ in range(self.transformer_layers)]).to(self.dtype)
         self.backbone_adapters_MLP_txt = nn.Sequential(*[BackboneAdapter(self.transformer_width, txt_hidden_dim) for _ in range(self.transformer_layers)]).to(self.dtype)
 
+        # 6 pre-fusion adapters (for the last 6 layers of encoders) and 6 post-fusion adapters attached after CLIP
         self.prefusion_adapters = nn.Sequential(*[PreFusionAdapter(self.vision_width, self.transformer_width, shared_dim=512, n_head=8) for _ in range(self.vision_layers-6)]).to(self.dtype)
         self.postfusion_adapters = nn.Sequential(*[PostFusionAdapter(shared_dim=self.visual.proj.shape[1], CA_n_head=8, MHSA_n_head=8, MLP_hidden_dim=256) for _ in range(6)]).to(self.dtype)
     
     def freeze_for_training(self):
+        # freeze the model except the adapters added to CLIP
         for param in self.parameters():
             param.requires_grad = False
         for param in self.postfusion_adapters.parameters():
@@ -396,10 +411,11 @@ class CLIP(nn.Module):
         torch.save(self.state_dict(), path)
 
     def encode(self, image, text):
-        assert(isinstance(self.visual, VisionTransformer))
-        assert(self.vision_layers == self.transformer.layers)
-        assert(self.visual.proj.shape[1] ==  self.text_projection.shape[1])
+        assert(isinstance(self.visual, VisionTransformer)) # check if the model is the ViT version
+        assert(self.vision_layers == self.transformer.layers)# check if the number of layers in image and text encoder is the same
+        assert(self.visual.proj.shape[1] ==  self.text_projection.shape[1]) # check if the final embedding dimension is the same
 
+        # processing of image before the transformer is applied
         x_image = image.type(self.dtype)
         x_image = self.visual.conv1(x_image)
         x_image = x_image.reshape(x_image.shape[0], x_image.shape[1], -1)
@@ -409,18 +425,25 @@ class CLIP(nn.Module):
         x_image = self.visual.ln_pre(x_image)
         x_image = x_image.permute(1, 0, 2)
 
+        # processing of text before the transformer is applied
         x_text = self.token_embedding(text).type(self.dtype)  # [batch_size, n_ctx, d_model]
         x_text = x_text + self.positional_embedding.type(self.dtype)
         x_text = x_text.permute(1, 0, 2)
 
+        # apply each layer in both image and text encoders one at a time
+        # because we need the output of each layer for both modalities to apply pre-fusion adapters
+        # (prefusion adapters fuse information from modalities at each layer)
         for i in range(self.vision_layers):
             if i > 5:
+                # apply pre-fusion adapters only for the last 6 layers
                 v, t = self.prefusion_adapters[i-6](x_image, x_text)
                 x_image = x_image + v
                 x_text = x_text + t
+                # always apply backbone adapters
                 x_image = self.visual.transformer.resblocks[i](x_image, self.backbone_adapters_MHSA_vis[i], self.backbone_adapters_MLP_vis[i])
                 x_text = self.transformer.resblocks[i](x_text, self.backbone_adapters_MHSA_txt[i], self.backbone_adapters_MLP_txt[i])
             else:
+                # for the first 4 layers save the output of visual transformer to use it later in the refiner
                 if i == 1:
                     self.fv1 = x_image
                 elif i == 2:
@@ -429,26 +452,27 @@ class CLIP(nn.Module):
                     self.fv3 = x_image
                 elif i == 4:
                     self.fv4 = x_image
+                # always apply backbone adapters
                 x_image = self.visual.transformer.resblocks[i](x_image, self.backbone_adapters_MHSA_vis[i], self.backbone_adapters_MLP_vis[i])
                 x_text = self.transformer.resblocks[i](x_text, self.backbone_adapters_MHSA_txt[i], self.backbone_adapters_MLP_txt[i])
 
-        
+        # then perform the last operations in both encoders to obtain the final token embeddings
 
         x_image = x_image.permute(1, 0, 2) # batch, CLS+patches, features
         x_text = x_text.permute(1, 0, 2) # batch, seq, features
-
-        patch_tokens = x_image
+        patch_tokens = x_image # from now on we care only about the patch tokens
         
+
+        ##### this is not really needed anymore, since we don't use the CLS token ##############
         x_image = self.visual.ln_post(x_image[:, 0, :]) # take CLS token and layer norm
-        x_text = self.ln_final(x_text).type(self.dtype) # layer norm
-
-
         if self.visual.proj is not None:
             x_image = x_image @ self.visual.proj # final proj into shared space
+        #######################################################################################
 
+
+        x_text = self.ln_final(x_text).type(self.dtype) # layer norm
         # text tokens projected in shared space
         text_tokens = x_text[torch.arange(x_text.shape[0])] @ self.text_projection
-
         # for each batch, take the last token (EOT) and project it into the shared space
         x_text = x_text[torch.arange(x_text.shape[0]), text.argmax(dim=-1)] @ self.text_projection
 
@@ -458,7 +482,6 @@ class CLIP(nn.Module):
         if self.visual.proj is not None:
             patch_tokens = patch_tokens @ self.visual.proj
         
-
         patch_tokens = patch_tokens.permute(1, 0, 2)
         text_tokens = text_tokens.permute(1, 0, 2)
         for i in range(len(self.postfusion_adapters)):
@@ -466,8 +489,9 @@ class CLIP(nn.Module):
             patch_tokens = v + patch_tokens
             text_tokens = t + text_tokens
 
-        # prendo patch_tokens[:, 1:, :] e faccio similarity con out_text
-        # poi il vettore di similarity per ogni batch faccio reshape in 14x14 e lo ritorno in una lista con tutte le mappe del batch
+        
+        # take patch_tokens[:, 1:, :] and compute similarity with out_text
+        # then take the similarity vector for each batch and reshape it in 14x14 and return it in a list with all the maps of the batch
 
         tokens = patch_tokens.permute(1, 0, 2)[:, 1:, :]
         out_text = text_tokens.permute(1, 0, 2)[torch.arange(text_tokens.shape[1]), text.argmax(dim=-1)]
@@ -481,19 +505,13 @@ class CLIP(nn.Module):
         
         maps = torch.stack(maps)
 
+        # return the probability maps for the current batch
+        # and the features of the first 4 layers of the visual encoder
+        # used later in the refiner
         return maps, [self.fv1.permute(1, 0, 2), 
                       self.fv1.permute(1, 0, 2), 
                       self.fv1.permute(1, 0, 2), 
                       self.fv1.permute(1, 0, 2)]
-    
-        # return (patch_tokens.permute(1, 0, 2)[:, 0, :], # CLS token of each sample in batch
-        #         text_tokens.permute(1, 0, 2)[torch.arange(text_tokens.shape[1]), text.argmax(dim=-1)], # EOT token of each sentence
-        #         patch_tokens.permute(1, 0, 2), # patch tokens
-        #         text_tokens.permute(1, 0, 2), # text tokens
-        #         [self.fv1.permute(1, 0, 2),
-        #         self.fv2.permute(1, 0, 2),
-        #         self.fv3.permute(1, 0, 2),
-        #         self.fv4.permute(1, 0, 2)])
     
     def encode_image(self, image):
         return self.visual(image.type(self.dtype))

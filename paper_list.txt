@@ -42,9 +42,9 @@ COMM    FIXED   ADDED
 ENTED   FOR     IN
         NOTEB   NOTEB
 [X]      [ ]     [ ]    model/locator/adapters.py
-[ ]      [ ]     [ ]    model/locator/clip.py
-[ ]      [ ]     [ ]    model/locator/model.py
-[ ]      [ ]     [ ]    model/locator/simple_tokenizer.py
+[X]      [ ]     [ ]    model/locator/clip.py
+[X]      [ ]     [ ]    model/locator/model.py
+[X]      [ ]     [ ]    model/locator/simple_tokenizer.py
 [ ]      [ ]     [ ]    dataset/RefcocogDataset copy.py
 [ ]      [ ]     [ ]    dataset/RefcocogDataset.py
 [ ]      [ ]     [ ]    dataset/RefcocogDataset.py
@@ -59,3 +59,20 @@ ENTED   FOR     IN
 [X]      [ ]     [ ]    tester.py
 [X]      [ ]     [ ]    training_locator.py
 [ ]      [ ]     [ ]    training_refiner.py
+
+
+ABOUT FILES:
+- clip.py:
+    nothing to comment, file should be as in standard implementation of clip
+- simple_tokenizer.py:
+    nothing to comment, file should be as in standard implementation of clip
+- model.py
+    stuff modified in the file:
+        - class CLIP:
+            - __init__()
+            - init_adapters()
+            - freeze_for_training()
+            - load_parameters()
+            - save_state_dict()
+            - encode()
+        - ResidualAttentionBlock class, used in Transformer class, used in VisionTransformer class, used in CLIP class
