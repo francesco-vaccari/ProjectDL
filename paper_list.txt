@@ -49,7 +49,7 @@ ENTED   FOR     IN
 [ ]      [ ]     [ ]    dataset/RefcocogDataset.py
 [ ]      [ ]     [ ]    dataset/RefcocogDataset.py
 [ ]      [ ]     [ ]    refiner/refiner.py
-[ ]      [ ]     [ ]    notebooks/Baseline.ipynb
+[X]      [ ]     [ ]    notebooks/Baseline.ipynb
 [ ]      [ ]     [ ]    notebooks/Dataset.ipynb
 [ ]      [ ]     [ ]    notebooks/DataVisualization.ipynb
 [ ]      [ ]     [ ]    notebooks/Last_Version.ipynb
