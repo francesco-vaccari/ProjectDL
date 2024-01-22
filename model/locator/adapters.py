@@ -32,6 +32,8 @@ class PreFusionAdapter(nn.Module):
         self.ln_text2 = nn.LayerNorm(shared_dim)
         self.CA_image = nn.MultiheadAttention(embed_dim=shared_dim, num_heads=n_head)
         self.CA_text = nn.MultiheadAttention(embed_dim=shared_dim, num_heads=n_head)
+        self.ln_image3 = nn.LayerNorm(shared_dim)
+        self.ln_text3 = nn.LayerNorm(shared_dim)
         self.W_s2v = nn.Linear(shared_dim, image_input_dim)
         self.W_s2t = nn.Linear(shared_dim, text_input_dim)
 
@@ -46,7 +48,7 @@ class PreFusionAdapter(nn.Module):
         self.W_s2t.bias.data.fill_(0.0)
 
     def forward(self, image, text):
-        # LN -> down proj -> LN -> CA (MHA) -> up proj
+        # LN -> down proj -> LN -> CA (MHA) -> LN -> up proj
         image = self.ln_image(image)
         text = self.ln_text(text)
         image = self.W_v2s(image)
@@ -56,6 +58,8 @@ class PreFusionAdapter(nn.Module):
         # in CA_image the query is the image, the key and value are the text
         image, _ = self.CA_image(query=image, key=text, value=text, need_weights=False)
         text, _ = self.CA_text(query=text, key=image, value=image, need_weights=False)
+        image = self.ln_image3(image)
+        text = self.ln_text3(text)
         image = self.W_s2v(image)
         text = self.W_s2t(text)
         return image, text
