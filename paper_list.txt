@@ -48,7 +48,7 @@ ENTED   FOR     IN
 [ ]      [ ]     [ ]    dataset/RefcocogDataset copy.py
 [ ]      [ ]     [ ]    dataset/RefcocogDataset.py
 [ ]      [ ]     [ ]    dataset/RefcocogDataset.py
-[ ]      [ ]     [ ]    refiner/refiner.py
+[X]      [ ]     [ ]    refiner/refiner.py
 [X]      [ ]     [ ]    notebooks/Baseline.ipynb
 [ ]      [ ]     [ ]    notebooks/Dataset.ipynb
 [ ]      [ ]     [ ]    notebooks/DataVisualization.ipynb
@@ -58,7 +58,7 @@ ENTED   FOR     IN
 [X]      [ ]     [ ]    FocalDiceLoss.py
 [X]      [ ]     [ ]    tester.py
 [X]      [ ]     [ ]    training_locator.py
-[ ]      [ ]     [ ]    training_refiner.py
+[X]      [ ]     [ ]    training_refiner.py
 
 
 ABOUT FILES:
