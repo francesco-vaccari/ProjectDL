@@ -47,7 +47,7 @@ class Refiner(nn.Module):
     #--------------------------------------------------
     # Block 1: 14 x 14 -> 28 x 28
     #--------------------------------------------------
-    # Concatenate low level probability map with image tokens encoded at layer 4
+    # Concatenate low level probability map with visual features encoded at layer 4
     fv4 = fv[3][:, 1:, :]                                # -> remove cls token
     fv4 = torch.transpose(fv4, 1, 2)                     # -> transpose to (batch x 768 x 196)
     fv4 = fv4.reshape(bacth_size, n_channels, 14, 14)    # -> reshape to (batch x 768 x 14 x 14)
@@ -61,7 +61,7 @@ class Refiner(nn.Module):
     #--------------------------------------------------
     # Block 2: 28 x 28 -> 56 x 56
     #--------------------------------------------------
-    # Concatenate low level probability map with image tokens encoded at layer 3
+    # Concatenate output previous layer with visual features encoded at layer 3
     fv3 = fv[2][:, 1:, :]
     fv3 = torch.transpose(fv3, 1, 2)
     fv3 = fv3.reshape(bacth_size, n_channels, 14, 14)
@@ -76,7 +76,7 @@ class Refiner(nn.Module):
     #--------------------------------------------------
     # Block 3: 56 x 56 -> 112 x 112
     #--------------------------------------------------
-    # Concatenate low level probability map with image tokens encoded at layer 2
+    # Concatenate output previous layer with visual features encoded at layer 2
     fv2 = fv[1][:, 1:, :]
     fv2 = torch.transpose(fv2, 1, 2)
     fv2 = fv2.reshape(bacth_size, n_channels, 14, 14)
@@ -91,7 +91,7 @@ class Refiner(nn.Module):
     #--------------------------------------------------
     # Block 4: 112 x 112 -> 224 x 224
     #--------------------------------------------------
-    # Concatenate low level probability map with image tokens encoded at layer 1
+    # Concatenate output previous layer with visual features encoded at layer 1
     fv1 = fv[0][:, 1:, :]
     fv1 = torch.transpose(fv1, 1, 2)
     fv1 = fv1.reshape(bacth_size, n_channels, 14, 14)
