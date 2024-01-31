@@ -11,6 +11,7 @@ import torch
 import numpy as np
 
 
+# Dataset missing util functions to extract bbox and compute ground truth
 class RefcocogDataset(Dataset):
     def __init__(self, base_path, split=None, transform=None, tokenization=None):
         annotation_path = base_path + "/annotations/"
