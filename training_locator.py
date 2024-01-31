@@ -167,7 +167,7 @@ if __name__ == "__main__":
     ########################################
 
     apply_sigmoid = True
-    criterion = FocalDiceLoss(apply_sigmoid=apply_sigmoid)
+    criterion = FocalDiceLoss(apply_sigmoid=apply_sigmoid).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=weight_decay, eps=1e-08)
     if resume:
         optimizer = load_optimizer(optimizer, path=args["optimizer"]) # when needed to resume training
