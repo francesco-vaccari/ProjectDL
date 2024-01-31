@@ -11,6 +11,7 @@ import torch
 import numpy as np
 
 
+## Official Class used to train and test the model
 class RefcocogDataset(Dataset):
     def __init__(self, base_path, split=None, transform=None, tokenization=None):
         annotation_path = base_path + "/annotations/"
@@ -19,15 +20,18 @@ class RefcocogDataset(Dataset):
         self.transform = transform
         self.tokenization = tokenization
 
+        # Load annotations and instances
         tmp_annotations = pandas.read_pickle(annotation_path + "refs(umd).p")
         tmp_instances = json.load(open(annotation_path + "instances.json", "r"))
 
+        # Create dataframes
         annotations_dt = pandas.DataFrame.from_records(tmp_annotations) \
             .filter(items=["image_id", "split", "sentences", "ann_id"])
 
         instances_dt = pandas.DataFrame.from_records(tmp_instances['annotations'])
 
         # Add Explode to separate list-like sentences column and use them as separate samples
+        # Create a new datapoint with every different phrase for the same image
         self.annotations = annotations_dt \
             .merge(instances_dt[["id", "bbox", "area", "segmentation"]], left_on="ann_id", right_on="id") \
             .explode('sentences', ignore_index=True) \
@@ -37,6 +41,7 @@ class RefcocogDataset(Dataset):
             self.annotations = self.__get_annotations_by_split(split.lower())
 
     def getImage(self, sample):
+        # Utility function to get the image from the dataset
         id = sample['idx'][0].item()
         item = self.annotations.iloc[id]
         image = self.__getimage(item.image_id)
@@ -44,22 +49,26 @@ class RefcocogDataset(Dataset):
         return image
 
     def getSentences(self, sample):
+        # Utility function to get the sentences from the dataset
         id = sample['idx'][0].item()
         item = self.annotations.iloc[id]
 
         return self.__extract_sentences(item.sentences)
 
     def __computeGroundTruth(self, item):
+        # Utility function to create a mask from the ground truth segmentation        
         image = self.__getimage(item.image_id)
         mask = Image.new("L", image.size)
         draw = ImageDraw.Draw(mask)
         draw.polygon(item.segmentation[0], fill="white", width=0)
 
+        # Resize the computed mask to 640x640 to match the model input
         mask = mask.resize((640, 640))
 
         return self.__img_preprocess(mask)
     
     def __bbox_image(self, item, n_px: int = 224):
+        # Utility function to create a mask from the ground truth bboxes
         image = self.__getimage(item.image_id)
         mask = Image.new("L", image.size)
         draw = ImageDraw.Draw(mask)
@@ -79,6 +88,7 @@ class RefcocogDataset(Dataset):
 
 
     def extract_bbox(self, out):
+        # Extract bbox coordinates from the an mask
         map = out.squeeze(0).squeeze(0).detach().cpu().numpy()
         # normalize map to [0, 1]
         map = (map - map.min()) / (map.max() - map.min())
@@ -100,7 +110,9 @@ class RefcocogDataset(Dataset):
         
     
     def __img_preprocess(self, image: Image, n_px: int = 224, grid_px: int = 14):
+        # Utility function to preprocess the input image
         resized = T.Resize(n_px, interpolation=Image.BICUBIC)(image)
+        #FIXME: CenterCrop is not working as expected
         crop = T.CenterCrop(n_px)(resized)
 
         grid = T.Resize(grid_px, interpolation=Image.BICUBIC)(crop)
@@ -122,6 +134,7 @@ class RefcocogDataset(Dataset):
 
     def __img_preprocess_refiner(self, image: Image, n_px: int = 224):
         resized = T.Resize(n_px, interpolation=Image.BICUBIC)(image)
+        #FIXME: CenterCrop is not working as expected
         crop = T.CenterCrop(n_px)(resized)
 
         arr = torch.tensor(np.asarray(crop))
