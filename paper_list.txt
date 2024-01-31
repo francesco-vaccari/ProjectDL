@@ -52,7 +52,7 @@ ENTED   FOR     IN
 [X]      [ ]     [ ]    notebooks/Baseline.ipynb
 [ ]      [ ]     [ ]    notebooks/Dataset.ipynb
 [ ]      [ ]     [ ]    notebooks/DataVisualization.ipynb
-[ ]      [ ]     [ ]    notebooks/Last_Version.ipynb
+[X]      [ ]     [ ]    notebooks/Baseline_without_Yolo.ipynb
 [ ]      [ ]     [ ]    notebooks/training_locator_(colab_version).ipynb
 [ ]      [ ]     [ ]    notebooks/Transformer+MLP.ipynb
 [X]      [ ]     [ ]    FocalDiceLoss.py
