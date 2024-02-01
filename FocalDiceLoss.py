@@ -59,6 +59,20 @@ def focal_loss(inputs, targets, alpha, gamma, reduction="none"):
 
     return loss
 
+class DiceLoss(nn.Module):
+    def __init__(self, weight=None, size_average=True):
+        super(DiceLoss, self).__init__()
+
+    def forward(self, inputs, targets, smooth=1):
+        
+        #flatten label and prediction tensors
+        inputs = inputs.view(-1)
+        targets = targets.view(-1)
+        
+        intersection = (inputs * targets).sum()                            
+        dice = (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)  
+        
+        return 1 - dice
 
 # the final loss function is a combination of focal and dice loss, both for locator and refiner trainings
 class FocalDiceLoss(nn.Module):
@@ -77,7 +91,7 @@ class FocalDiceLoss(nn.Module):
             inputs = torch.sigmoid(inputs)
         
         f_loss = focal_loss(inputs, targets, alpha=self.alpha, gamma=self.gamma, reduction="mean")
-        d_loss = dice_loss(inputs, targets)
+        d_loss = DiceLoss().forward(inputs, targets)
         loss = self.lambda_focal * f_loss + self.lambda_dice * d_loss # values used --> (1.75 * focal) + (1 * dice)
 
         return loss

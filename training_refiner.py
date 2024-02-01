@@ -1,4 +1,5 @@
-import clip
+import model.locator.clip as clip
+# import clip
 import torch
 import argparse
 
@@ -18,9 +19,9 @@ import os
 
 arg = argparse.ArgumentParser()
 arg.add_argument("--name", type=str, default='run_{}'.format(datetime.now().strftime('%Y%m%d_%H%M%S')), help="Name of the run")
-arg.add_argument("--batch_size", type=int, default=16, help="Batch size")
-arg.add_argument("--num_epochs", type=int, default=1, help="Number of epochs")
-arg.add_argument("--dataset", type=str, default="./dataset/refcocog", help="Dataset to use")
+arg.add_argument("--batch_size", type=int, default=30, help="Batch size")
+arg.add_argument("--num_epochs", type=int, default=3, help="Number of epochs")
+arg.add_argument("--dataset", type=str, default="./refcocog", help="Dataset to use")
 arg.add_argument("-l", "--logwandb", help="Log training on wandb", action="store_true")
 
 args = vars(arg.parse_args())
@@ -37,7 +38,7 @@ torch.autograd.set_detect_anomaly(True)
 def load_locator(path):
     locator, preprocess = clip.load("ViT-B/16")
     locator.init_adapters()
-    locator = locator.to(device)
+    locator = locator.to(device, dtype=torch.float32)
     locator.load_state_dict(torch.load(path))
     locator.eval()
     return locator, preprocess
@@ -124,7 +125,7 @@ if __name__ == "__main__":
     # INITIALIZE MODELS
     ########################################
 
-    locator, preprocess = load_locator(path="path") # change path
+    locator, preprocess = load_locator(path="runs/DiceLossFix/latest.pth") # change path
 
     refiner = Refiner()
     refiner = refiner.to(device)
