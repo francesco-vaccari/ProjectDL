@@ -45,15 +45,11 @@ ENTED   FOR     IN
 [X]      [ ]     [ ]    model/locator/clip.py
 [X]      [ ]     [ ]    model/locator/model.py
 [X]      [ ]     [ ]    model/locator/simple_tokenizer.py
-[ ]      [ ]     [ ]    dataset/RefcocogDataset.py
-[ ]      [ ]     [ ]    dataset/RefcocogDataset.py
+[X]      [ ]     [ ]    dataset/RefcocogDataset.py
+[ ]      [ ]     [ ]    dataset/RefcocogDatasetMultiPhrase.py
 [X]      [ ]     [ ]    refiner/refiner.py
 [X]      [ ]     [ ]    notebooks/Baseline.ipynb
-[ ]      [ ]     [ ]    notebooks/Dataset.ipynb
-[ ]      [ ]     [ ]    notebooks/DataVisualization.ipynb
-[X]      [ ]     [ ]    notebooks/Baseline_without_Yolo.ipynb
-[ ]      [ ]     [ ]    notebooks/training_locator_(colab_version).ipynb
-[ ]      [ ]     [ ]    notebooks/Transformer+MLP.ipynb
+[X]      [ ]     [ ]    notebooks/Baseline BLIP + SAM.ipynb
 [X]      [ ]     [ ]    FocalDiceLoss.py
 [X]      [ ]     [ ]    tester.py
 [X]      [ ]     [ ]    training_locator.py
