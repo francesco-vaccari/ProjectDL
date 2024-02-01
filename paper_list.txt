@@ -45,7 +45,6 @@ ENTED   FOR     IN
 [X]      [ ]     [ ]    model/locator/clip.py
 [X]      [ ]     [ ]    model/locator/model.py
 [X]      [ ]     [ ]    model/locator/simple_tokenizer.py
-[ ]      [ ]     [ ]    dataset/RefcocogDataset copy.py
 [ ]      [ ]     [ ]    dataset/RefcocogDataset.py
 [ ]      [ ]     [ ]    dataset/RefcocogDataset.py
 [X]      [ ]     [ ]    refiner/refiner.py
