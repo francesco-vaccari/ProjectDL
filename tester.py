@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+import model.locator.clip as clip
+from dataset.RefcocogDataset import RefcocogDataset
+from model.refiner.refiner import Refiner
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 from matplotlib.patches import Rectangle
@@ -14,17 +17,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ###### LOADL MODELS ######
 ##########################
 
-<<<<<<< Updated upstream
-import model.locator.clip as clip
-from dataset.RefcocogDataset import RefcocogDataset
-from model.refiner.refiner import Refiner
-locator_path = "./best.pth"
-refiner_path = "../models/refiner_epoch_1.pth"
-show_n = 3
-=======
-locator_path = "./runs/DiceLossFix/latest.pth"
-refiner_path = "./runs/run_20240201_094626/best.pth"
->>>>>>> Stashed changes
+locator_path = "./runs/ScaledImages/latest.pth"
+refiner_path = "./model/epoch6/refiner_epoch_1.pth"
 
 locator, preprocess = clip.load("ViT-B/16")
 locator.init_adapters()
@@ -88,13 +82,12 @@ def compute_accuracy(out, bbox):
 ##########################
 
 # evaluate on the test split of dataset
-batch_size = 1
-test_dataset = RefcocogDataset("./dataset/refcocog", split="test", transform=preprocess)
+batch_size = 2
+test_dataset = RefcocogDataset("./refcocog", split="test", transform=preprocess)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 acc = []
 for i, (sample, bbox) in enumerate(test_loader):
-    if i != show_n: continue
     image = sample['image'].to(device)
     sentences = clip.tokenize(sample['sentences']).to(device)
     
@@ -134,4 +127,5 @@ for i, (sample, bbox) in enumerate(test_loader):
         plt.subplot(2, 3, 5)
         plt.imshow(bbox['gt_refiner'][idx])
         plt.show()
-    break
+    
+print(f'\nAccuracy : {sum(acc)/len(acc)}')
