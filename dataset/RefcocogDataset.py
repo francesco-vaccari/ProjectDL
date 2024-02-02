@@ -112,7 +112,6 @@ class RefcocogDataset(Dataset):
     def __img_preprocess(self, image: Image, n_px: int = 224, grid_px: int = 14):
         # Utility function to preprocess the input image
         resized = T.Resize(n_px, interpolation=Image.BICUBIC)(image)
-        #FIXME: CenterCrop is not working as expected
         crop = T.CenterCrop(n_px)(resized)
 
         grid = T.Resize(grid_px, interpolation=Image.BICUBIC)(crop)
@@ -134,7 +133,6 @@ class RefcocogDataset(Dataset):
 
     def __img_preprocess_refiner(self, image: Image, n_px: int = 224):
         resized = T.Resize(n_px, interpolation=Image.BICUBIC)(image)
-        #FIXME: CenterCrop is not working as expected
         crop = T.CenterCrop(n_px)(resized)
 
         arr = torch.tensor(np.asarray(crop))

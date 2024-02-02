@@ -14,12 +14,17 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ###### LOADL MODELS ######
 ##########################
 
+<<<<<<< Updated upstream
 import model.locator.clip as clip
 from dataset.RefcocogDataset import RefcocogDataset
 from model.refiner.refiner import Refiner
 locator_path = "./best.pth"
 refiner_path = "../models/refiner_epoch_1.pth"
 show_n = 3
+=======
+locator_path = "./runs/DiceLossFix/latest.pth"
+refiner_path = "./runs/run_20240201_094626/best.pth"
+>>>>>>> Stashed changes
 
 locator, preprocess = clip.load("ViT-B/16")
 locator.init_adapters()
